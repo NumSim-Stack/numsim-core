@@ -1,0 +1,2 @@
+add_numsim_core_example(input_parameter_controller main.cpp)
+

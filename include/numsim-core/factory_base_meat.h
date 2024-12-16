@@ -1,0 +1,4 @@
+#ifndef FACTORY_BASE_MEAT_H
+#define FACTORY_BASE_MEAT_H
+
+#endif // FACTORY_BASE_MEAT_H

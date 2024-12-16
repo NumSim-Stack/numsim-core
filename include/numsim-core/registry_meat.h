@@ -1,0 +1,4 @@
+#ifndef REGISTRY_MEAT_H
+#define REGISTRY_MEAT_H
+
+#endif // REGISTRY_MEAT_H

@@ -30,9 +30,12 @@
 *.exe
 *.out
 *.app
+<<<<<<< HEAD
 
 # Builds
 **/.build
 **/build
 
 *.user
+=======
+>>>>>>> main
