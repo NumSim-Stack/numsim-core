@@ -1,0 +1,4 @@
+#ifndef WAREHOUSE_MEAT_H
+#define WAREHOUSE_MEAT_H
+
+#endif // WAREHOUSE_MEAT_H
