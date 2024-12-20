@@ -265,20 +265,18 @@ private:
    *
    * @tparam MapPart The type of the current map being processed.
    * @tparam Data The type of the data to be stored.
-   * @tparam Func The type of the function used to generate the value.
    * @tparam First The type of the first key.
    * @tparam Keys The remaining key types.
    * @param map The current map being processed.
    * @param data The data reference to be stored.
-   * @param func The function to generate the value.
    * @param first The first key.
    * @param keys The remaining keys.
    */
-  template <typename MapPart, typename Data, /*typename Func, */typename First,
+  template <typename MapPart, typename Data, typename First,
             typename... Keys>
-  void set_imp(MapPart &map, Data &&data, /*Func &&func,*/ First &&first,
+  void set_imp(MapPart &map, Data &&data, First &&first,
                Keys &&...keys) {
-    set_imp(map[first], std::forward<Data>(data), /*std::forward<Func>(func),*/ keys...);
+    set_imp(map[first], std::forward<Data>(data), keys...);
   }
 
   /**
@@ -286,15 +284,13 @@ private:
    *
    * @tparam MapPart The type of the current map being processed.
    * @tparam T The type of the data to be stored.
-   * @tparam Func The type of the function used to generate the value.
    * @tparam Last The type of the last key.
    * @param map The current map being processed.
    * @param data The data reference to be stored.
-   * @param func The function to generate the value.
    * @param last The last key.
    */
-  template <typename MapPart, typename Data, /*typename Func, */typename Last>
-  void set_imp(MapPart &map, Data &&data, /*Func &&func,*/ Last &&last) {
+  template <typename MapPart, typename Data, typename Last>
+  void set_imp(MapPart &map, Data &&data, Last &&last) {
     map[last] = std::forward<Data>(data);
   }
 

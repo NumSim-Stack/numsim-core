@@ -31,7 +31,7 @@ TEST_F(QueryMapTest, SetAndGetValues) {
   int data = 42;
 
          // Setting value with keys 1 and "key1"
-  qmap.set(data, value_gen, 1, std::string("key1"));
+  qmap.set(std::make_any<int>(data), 1, std::string("key1"));
 
          // Retrieving the stored value
   auto &retrievedValue = std::any_cast<int&>(qmap.get(1, std::string("key1")));
@@ -45,7 +45,7 @@ TEST_F(QueryMapTest, ConstAndNonConstGet) {
   int data = 100;
 
          // Setting value with keys 2 and "key2"
-  qmap.set(data, value_gen, 2, std::string("key2"));
+  qmap.set(std::make_any<int>(data), 2, std::string("key2"));
 
          // Test non-const get
   auto &nonConstValue = std::any_cast<int&>(qmap.get(2, std::string("key2")));
@@ -68,7 +68,7 @@ TEST_F(QueryMapTest, QueryExecution) {
   bool query_executed = false;
 
          // Set a value with keys 1 and "key3"
-  qmap.set(data, value_gen, 1, std::string("key3"));
+  qmap.set(std::make_any<int>(data), 1, std::string("key3"));
 
          // Store a query that checks if the value matches the original
   qmap.query([&query_executed](std::any &value) {
@@ -90,10 +90,10 @@ TEST_F(QueryMapTest, UpdateValue) {
   int updated_data = 99;
 
          // Set an initial value
-  qmap.set(initial_data, value_gen, 4, std::string("key4"));
+  qmap.set(std::make_any<int>(initial_data), 4, std::string("key4"));
 
          // Update the value using the same keys
-  qmap.set(updated_data, value_gen, 4, std::string("key4"));
+  qmap.set(std::make_any<int>(updated_data), 4, std::string("key4"));
 
          // Retrieve and check the updated value
   auto &retrievedValue = std::any_cast<int&>(qmap.get(4, std::string("key4")));
