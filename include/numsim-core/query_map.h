@@ -113,20 +113,17 @@ public:
   /**
    * @brief Sets a value in the map with the specified keys.
    *
-   * This function takes a data reference, a function for value generation, and
+   * This function takes a data reference and
    * a variadic list of keys.
    *
    * @tparam T The type of the data to be stored.
-   * @tparam Func The type of the function used to generate the value.
    * @tparam Keys The types of the keys used to access the map.
-   * @param data The data reference to be stored.
-   * @param func The function to generate the value.
+   * @param data The data to be stored.
    * @param keys The keys to associate with the value.
    */
-  template <typename T, typename Func, typename... Keys>
-  void set(T &data, Func &&func, Keys &&...keys) {
-    set_imp(m_data, data, std::forward<Func>(func),
-            std::forward<Keys>(keys)...);
+  template <typename T, typename... Keys>
+  void set(T &&data, Keys &&...keys) {
+    set_imp(m_data, std::forward<T>(data), std::forward<Keys>(keys)...);
   }
 
   /**
@@ -140,21 +137,6 @@ public:
    * @return A reference to the retrieved value.
    */
   template <typename... Keys> auto &get(Keys &&...keys) {
-    return get_list_first(std::make_tuple(std::forward<Keys>(keys)...),
-                          index_sequence{});
-  }
-
-  /**
-   * @brief Retrieves a value from the map using the specified keys.
-   *
-   * This overload is const and does not allow modifications to the retrieved
-   * value.
-   *
-   * @tparam Keys The types of the keys used to access the map.
-   * @param keys The keys used to retrieve the value.
-   * @return A const reference to the retrieved value.
-   */
-  template <typename... Keys> auto const &get(Keys &&...keys) const {
     return get_list_first(std::make_tuple(std::forward<Keys>(keys)...),
                           index_sequence{});
   }
@@ -185,6 +167,22 @@ public:
   }
 
 private:
+
+  /**
+   * @brief Retrieves a value from the map using the specified keys.
+   *
+   * This overload is const and does not allow modifications to the retrieved
+   * value.
+   *
+   * @tparam Keys The types of the keys used to access the map.
+   * @param keys The keys used to retrieve the value.
+   * @return A const reference to the retrieved value.
+   */
+  template <typename... Keys> auto const &get(Keys &&...keys) const {
+    return get_list_first(std::make_tuple(std::forward<Keys>(keys)...),
+                          index_sequence{});
+  }
+
   /**
    * @brief Retrieves the first value from the map using the provided keys.
    *
@@ -276,11 +274,11 @@ private:
    * @param first The first key.
    * @param keys The remaining keys.
    */
-  template <typename MapPart, typename Data, typename Func, typename First,
+  template <typename MapPart, typename Data, /*typename Func, */typename First,
             typename... Keys>
-  void set_imp(MapPart &map, Data &data, Func &&func, First &&first,
+  void set_imp(MapPart &map, Data &&data, /*Func &&func,*/ First &&first,
                Keys &&...keys) {
-    set_imp(map[first], data, std::forward<Func>(func), keys...);
+    set_imp(map[first], std::forward<Data>(data), /*std::forward<Func>(func),*/ keys...);
   }
 
   /**
@@ -295,9 +293,9 @@ private:
    * @param func The function to generate the value.
    * @param last The last key.
    */
-  template <typename MapPart, typename T, typename Func, typename Last>
-  void set_imp(MapPart &map, T &data, Func &&func, Last &&last) {
-    map[last] = func(data);
+  template <typename MapPart, typename Data, /*typename Func, */typename Last>
+  void set_imp(MapPart &map, Data &&data, /*Func &&func,*/ Last &&last) {
+    map[last] = std::forward<Data>(data);
   }
 
   map_type m_data{}; ///< The internal map that holds the key-value pairs.

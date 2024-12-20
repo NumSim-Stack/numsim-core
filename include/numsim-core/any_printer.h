@@ -165,7 +165,15 @@ class any_print_wrapper {
                  std::ostream &os) {
                 os << "(" << std::get<0>(t) << ", " << std::get<1>(t) << ", "
                    << std::quoted(std::get<2>(t)) << ")";
-              })};
+              }),
+
+          to_any_visitor<std::reference_wrapper<const double>, std::ostream &>(
+              [](std::reference_wrapper<const double> const &x, std::ostream &os) {
+                os << x.get(); }),
+
+          to_any_visitor<std::reference_wrapper<double>, std::ostream &>(
+      [](std::reference_wrapper<double> const &x, std::ostream &os) {
+               os << x.get(); })};
 
 public:
   /**
@@ -203,7 +211,7 @@ private:
   std::any const &m_data; ///< The `std::any` object being printed.
 };
 
-} // namespace uvwCommon
+} // namespace numsim_core
 
 inline auto print(std::any const &data) {
   return numsim_core::any_print_wrapper(data);
