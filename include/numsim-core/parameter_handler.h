@@ -7,7 +7,25 @@
 #include <string>
 #include <unordered_map>
 
+
+
 namespace numsim_core {
+
+template<typename T>
+struct parameter_handler_cast;
+
+template<>
+struct parameter_handler_cast<std::any>{
+  template<typename T>
+  constexpr inline T operator()(std::any & data)const{
+    return std::any_cast<T>(data);
+  }
+
+  template<typename T>
+  constexpr inline T operator()(std::any const& data)const{
+    return std::any_cast<T>(data);
+  }
+};
 
 /**
  * @brief A class for handling parameters with dynamic typing.
@@ -27,6 +45,7 @@ class parameter_handler {
 public:
   using key_type =
       KeyType; ///< Alias for the key type used in the parameter handler.
+  using cast = parameter_handler_cast<TypeErasure>;
 
   /**
    * @brief Constructs an empty parameter handler.
@@ -46,7 +65,7 @@ public:
    */
   template <typename T> T &insert(KeyType &&name, T &&value) {
     auto iter{m_data.insert_or_assign(std::move(name), std::move(value))};
-    return std::any_cast<T &>(iter.first->second);
+    return cast().template operator()<T &>(iter.first->second);
   }
 
   /**
@@ -62,7 +81,7 @@ public:
    */
   template <typename T> T &insert(KeyType const &name, T &&value) {
     auto iter{m_data.insert_or_assign(name, std::move(value))};
-    return std::any_cast<T &>(iter.first->second);
+    return cast().template operator()<T &>(iter.first->second);
   }
 
   /**
@@ -78,7 +97,7 @@ public:
    */
   template <typename T> T &insert(KeyType &&name, T const&value) {
     auto iter{m_data.insert_or_assign(std::move(name), value)};
-    return std::any_cast<T &>(iter.first->second);
+    return cast().template operator()<T &>(iter.first->second);
   }
 
   /**
@@ -94,7 +113,7 @@ public:
    */
   template <typename T> T &insert(KeyType const &name, T const&value) {
     auto iter{m_data.insert_or_assign(name, value)};
-    return std::any_cast<T &>(iter.first->second);
+    return cast().template operator()<T &>(iter.first->second);
   }
 
   /**
@@ -112,7 +131,7 @@ public:
     if (pos == m_data.end()) {
       throw std::invalid_argument("Key " + name + " not found");
     }
-    return std::any_cast<const T &>((pos->second));
+    return cast().template operator()<T const&>(pos->second);
   }
 
   /**
@@ -132,7 +151,7 @@ public:
     if (pos == m_data.end()) {
       throw std::invalid_argument("Key " + name + " not found");
     }
-    return std::any_cast<const T &>((pos->second));
+    return cast().template operator()<T const&>(pos->second);
   }
 
   /**
@@ -150,7 +169,7 @@ public:
     if (pos == m_data.end()) {
       throw std::invalid_argument("Key " + name + " not found");
     }
-    return std::any_cast<T &>((pos->second));
+    return cast().template operator()<T &>(pos->second);
   }
 
   /**
@@ -170,7 +189,7 @@ public:
     if (pos == m_data.end()) {
       throw std::invalid_argument("Key " + name + " not found");
     }
-    return std::any_cast<T &>((pos->second));
+    return cast().template operator()<T &>(pos->second);
   }
 
   /**
