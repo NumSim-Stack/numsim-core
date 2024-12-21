@@ -150,7 +150,7 @@ public:
     if (pos == m_data.end()) {
       throw std::invalid_argument("Key " + name + " not found");
     }
-    return std::any_cast<const T &>((pos->second));
+    return std::any_cast<T &>((pos->second));
   }
 
   /**
@@ -170,7 +170,7 @@ public:
     if (pos == m_data.end()) {
       throw std::invalid_argument("Key " + name + " not found");
     }
-    return std::any_cast<const T &>((pos->second));
+    return std::any_cast<T &>((pos->second));
   }
 
   /**
