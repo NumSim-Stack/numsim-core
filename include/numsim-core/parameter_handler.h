@@ -136,6 +136,44 @@ public:
   }
 
   /**
+   * @brief Retrieves a value associated with the specified key.
+   *
+   * This function will throw an exception if the key is not found.
+   *
+   * @tparam T The type of the value being retrieved.
+   * @param name The key for which the value is to be retrieved.
+   * @return A const reference to the value associated with the key.
+   * @throws std::invalid_argument if the key is not found.
+   */
+  template <typename T> T &get(KeyType &&name) {
+    auto pos{m_data.find(name)};
+    if (pos == m_data.end()) {
+      throw std::invalid_argument("Key " + name + " not found");
+    }
+    return std::any_cast<const T &>((pos->second));
+  }
+
+  /**
+   * @brief Retrieves a value associated with the specified key (const
+   * overload).
+   *
+   * This function behaves the same as the non-const version but takes a
+   * constant reference for the key.
+   *
+   * @tparam T The type of the value being retrieved.
+   * @param name The key for which the value is to be retrieved.
+   * @return A const reference to the value associated with the key.
+   * @throws std::invalid_argument if the key is not found.
+   */
+  template <typename T> T &get(KeyType const &name) {
+    auto pos{m_data.find(name)};
+    if (pos == m_data.end()) {
+      throw std::invalid_argument("Key " + name + " not found");
+    }
+    return std::any_cast<const T &>((pos->second));
+  }
+
+  /**
    * @brief Retrieves the type-erased value associated with the specified key.
    *
    * This function will throw an exception if the key is not found.
