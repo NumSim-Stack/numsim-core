@@ -280,7 +280,7 @@ public:
    * @param value The default value to set.
    */
   explicit set_default(input_parameter<T, KeyType, ParameterHandler> const &para,
-                       T &&value) noexcept
+                       T &&value = T()) noexcept
       : base(para), m_value(value) {}
 
   /**
