@@ -43,6 +43,22 @@ public:
   void commit() noexcept override { m_old = m_new; }
   void revert() noexcept override { m_new = m_old; }
 
+  /// Serialize old and new values as raw bytes.
+  /// Only valid for trivially copyable types (scalars, tensors).
+  void serialize(std::ostream& os) const override {
+    static_assert(std::is_trivially_copyable_v<T>,
+                  "history_property::serialize requires trivially copyable type");
+    os.write(reinterpret_cast<const char*>(&m_old), sizeof(T));
+    os.write(reinterpret_cast<const char*>(&m_new), sizeof(T));
+  }
+
+  void deserialize(std::istream& is) override {
+    static_assert(std::is_trivially_copyable_v<T>,
+                  "history_property::deserialize requires trivially copyable type");
+    is.read(reinterpret_cast<char*>(&m_old), sizeof(T));
+    is.read(reinterpret_cast<char*>(&m_new), sizeof(T));
+  }
+
 private:
   T m_old;
   T m_new;
