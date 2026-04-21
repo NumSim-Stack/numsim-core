@@ -1,7 +1,10 @@
 #ifndef NUMSIM_CORE_PG_PROPERTY_H
 #define NUMSIM_CORE_PG_PROPERTY_H
 
+#include <cstring>
 #include <memory>
+#include <ostream>
+#include <istream>
 #include <numsim-core/property_graph/property_traits.h>
 
 namespace numsim_core {
@@ -32,6 +35,11 @@ public:
   virtual bool is_history() const noexcept { return false; }
   virtual void commit() noexcept {}
   virtual void revert() noexcept {}
+
+  /// Serialize the property's value to a binary stream.
+  virtual void serialize(std::ostream&) const {}
+  /// Deserialize the property's value from a binary stream.
+  virtual void deserialize(std::istream&) {}
 
 protected:
   Traits m_traits;
