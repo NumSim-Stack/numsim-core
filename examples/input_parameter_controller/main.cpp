@@ -1,5 +1,6 @@
 #include "numsim-core/input_parameter_controller.h"
 #include <any>
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 #include <unordered_map>

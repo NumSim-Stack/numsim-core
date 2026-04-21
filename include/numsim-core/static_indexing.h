@@ -35,8 +35,8 @@ public:
   template <typename... Args>
   static_indexing(Args &&...args) : Base(std::forward<Args>(args)...) {}
   static_indexing() = default;
-  static_indexing(static_indexing const &) = delete;
-  static_indexing(static_indexing &&) = delete;
+  //static_indexing(static_indexing const &) = delete;
+  //static_indexing(static_indexing &&) = delete;
   virtual ~static_indexing() = default;
   const static_indexing &operator=(static_indexing const &) = delete;
 //  [[nodiscard]] type_id get_type_id() const noexcept final override {
@@ -46,7 +46,7 @@ public:
 //    return m_id;
 //  }
 
-private:
+//private:
   static inline auto m_id{detail::static_indexing_imp<Derived>::value};
 };
 

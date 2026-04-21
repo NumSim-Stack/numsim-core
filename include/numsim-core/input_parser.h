@@ -18,7 +18,7 @@ public:
     input_parser (int &argc, char **argv){
         for (int i=1; i < argc; ++i){
             std::string key{remove_character(std::string(argv[i]), '-')};
-            if(i < argc-1 && std::string(argv[i+1]).find("-")){
+            if(i < argc-1 && std::string(argv[i+1]).find("-") != 0){
                 ++i;
                 m_arguments[key] = std::string(argv[i]);
             }else{

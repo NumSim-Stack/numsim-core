@@ -4,17 +4,23 @@
 #include <any>
 #include <exception>
 #include <fstream>
+#include <functional>
+#include <list>
 #include <memory>
+#include <print>
 #include <string>
+#include <typeindex>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include "input_parameter_enum_utils.h"
 
 namespace numsim_core {
 
 /**
- * @file InputParameter.h
+ * @file input_parameter_controller.h
  * @brief Contains definitions for input parameter handling and validation.
  */
 
@@ -72,14 +78,12 @@ public:
   /**
    * @brief Deleted move assignment operator.
    */
-  input_parameter_check_base const &
-  operator=(input_parameter_check_base &&) = delete;
+  input_parameter_check_base const &operator=(input_parameter_check_base &&) = delete;
 
   /**
    * @brief Deleted copy assignment operator.
    */
-  input_parameter_check_base const &
-  operator=(input_parameter_check_base const &) = delete;
+  input_parameter_check_base const &operator=(input_parameter_check_base const &) = delete;
 
   /**
    * @brief Pure virtual function to check the parameter.
@@ -88,11 +92,17 @@ public:
    */
   virtual void check(ParameterHandler &) const = 0;
 
+  void set_description(std::string desc) { m_description = std::move(desc); }
+
+  auto const& description() const { return m_description; }
+
 protected:
   /**
    * @brief Reference to the input_parameter.
    */
   input_parameter<T, KeyType, ParameterHandler> const &m_para;
+
+  std::string m_description;
 };
 
 /**
@@ -230,7 +240,9 @@ public:
       const auto value{input.template get<T>(para_name)};
       if (value < m_low || value > m_high) {
         throw std::invalid_argument("Parameter " + this->m_para.name() +
-                                    " out of range");
+                                    " = " + std::to_string(value) +
+                                    " is out of range [" + std::to_string(m_low) +
+                                    ", " + std::to_string(m_high) + "]");
       }
     }
   }
@@ -244,6 +256,7 @@ private:
  * @brief Class for setting a default value for an input parameter.
  *
  * Inherits from input_parameter_check_base and implements the check method.
+ * If the parameter is missing from the handler, inserts the default value.
  *
  * @tparam T The type of the parameter.
  * @tparam KeyType The type used as the key for the parameter.
@@ -309,9 +322,10 @@ private:
 };
 
 /**
- * @brief Class for setting a default value for an input parameter.
+ * @brief Class for validating the data type of an input parameter.
  *
  * Inherits from input_parameter_check_base and implements the check method.
+ * Attempts to cast the stored value to the expected type T.
  *
  * @tparam T The type of the parameter.
  * @tparam KeyType The type used as the key for the parameter.
@@ -342,10 +356,9 @@ public:
   check_data_type(check_data_type &&) = delete;
 
   /**
-   * @brief Constructs set_default with a reference to an input_parameter and a default value.
+   * @brief Constructs check_data_type with a reference to an input_parameter.
    *
-   * @param para The input_parameter object to set a default for.
-   * @param value The default value to set.
+   * @param para The input_parameter object to check.
    */
   explicit check_data_type(input_parameter<T, KeyType, ParameterHandler> const &para) noexcept
       : base(para) {}
@@ -361,25 +374,105 @@ public:
   check_data_type const &operator=(check_data_type &&) = delete;
 
   /**
-   * @brief Checks if the parameter is present in the handler and sets default if absent.
+   * @brief Checks if the stored parameter value can be cast to type T.
    *
    * @param input The parameter handler to check against.
    */
   void check(ParameterHandler &input) const final override {
     if (input.contains(this->m_para.name())) {
       try {
-        const auto value{input.template get<T>(this->m_para.name())};
-      } catch (...) {
-        throw;
+        [[maybe_unused]] const auto value{input.template get<T>(this->m_para.name())};
+      } catch (const std::exception& e) {
+        throw std::invalid_argument(
+            "Parameter '" + this->m_para.name() + "' has wrong type: " + e.what());
       }
     }
   }
 };
 
 /**
+ * @brief Class for validating an enum parameter from its string representation.
+ *
+ * Validates that the string value is a valid enum entry using enum_traits,
+ * then replaces the string in the handler with the converted enum value.
+ *
+ * @tparam EnumType The enum type to validate against.
+ * @tparam KeyType The type used as the key for the parameter.
+ * @tparam ParameterHandler The type of the handler that manages parameters.
+ */
+template <typename EnumType, typename KeyType, typename ParameterHandler>
+class check_enum final
+    : public input_parameter_check_base<EnumType, KeyType, ParameterHandler> {
+public:
+  using base = input_parameter_check_base<EnumType, KeyType, ParameterHandler>;
+
+  explicit check_enum(input_parameter<EnumType, KeyType, ParameterHandler> const& para) noexcept
+      : base(para) {}
+
+  void check(ParameterHandler &input) const final override {
+    const auto &name = this->m_para.name();
+
+    if (!input.contains(name))
+      throw std::invalid_argument("Enum parameter '" + name + "' is missing!");
+
+    const auto& str_val = input.template get<std::string>(name);
+
+    if (!enum_traits<EnumType>::is_valid(str_val)) {
+      throw std::invalid_argument("Invalid enum value for '" + name + "': '" + str_val + "'");
+    }
+
+    input.insert(name, enum_traits<EnumType>::from_string(str_val));
+  }
+};
+
+// --- parameter_visitor_base ---
+
+/**
+ * @brief Abstract base for visiting input parameters.
+ *
+ * A pure data reader: reads values from an external source (JSON, YAML, etc.)
+ * and returns them as std::any. Does NOT know about ParameterHandler — the
+ * typed insertion is handled by input_parameter<T>::accept().
+ *
+ * Concrete visitors inherit from this and implement contains() + read().
+ *
+ * @tparam KeyType The type used as the key for the parameters.
+ */
+template <typename KeyType>
+class parameter_visitor_base {
+public:
+  virtual ~parameter_visitor_base() = default;
+
+  /**
+   * @brief Check if the data source contains a value for the given key.
+   *
+   * @param key The parameter name.
+   * @return True if the data source has a value for this key.
+   */
+  virtual bool contains(const KeyType& key) const = 0;
+
+  /**
+   * @brief Read a value from the data source.
+   *
+   * Called by input_parameter<T>::accept(). The implementation uses tid
+   * to determine the expected C++ type and returns the converted value
+   * wrapped in std::any.
+   *
+   * @param key The parameter name.
+   * @param tid The runtime type identifier (typeid(T) from the schema).
+   * @return The converted value as std::any.
+   * @throws std::runtime_error if the type is not supported or conversion fails.
+   */
+  virtual std::any read(const KeyType& key, std::type_index tid) const = 0;
+};
+
+// --- input_parameter_base ---
+
+/**
  * @brief Base class for input parameters.
  *
- * This class provides the basic structure for an input parameter, including its name.
+ * Provides the basic structure for an input parameter, including its name,
+ * runtime type identification, child parameters, and description.
  *
  * @tparam KeyType The type used as the key for the parameter.
  * @tparam ParameterHandler The type of the handler that manages parameters.
@@ -387,6 +480,8 @@ public:
 template <typename KeyType, typename ParameterHandler>
 class input_parameter_base {
 public:
+  using child_type = std::unique_ptr<input_parameter_base<KeyType, ParameterHandler>>;
+
   /**
    * @brief Constructs input_parameter_base with a name.
    *
@@ -396,7 +491,7 @@ public:
       : m_name(name) {}
 
   /**
-   * @brief Constructs input_parameter_base with a rvalue name.
+   * @brief Constructs input_parameter_base with an rvalue name.
    *
    * @param name The name of the parameter.
    */
@@ -436,20 +531,83 @@ public:
   virtual void check_parameter(ParameterHandler &) const = 0;
 
   /**
+   * @brief Returns the runtime type identifier for this parameter's C++ type.
+   *
+   * Used by external converters (e.g., JSON) to determine the expected type
+   * without requiring a compile-time variant of all possible types.
+   *
+   * @return std::type_index identifying the parameter's type T.
+   */
+  virtual std::type_index type_id() const = 0;
+
+  /**
+   * @brief Accept a visitor for this parameter.
+   *
+   * The visitor reads the value from its data source and returns std::any.
+   * The concrete input_parameter<T> does the typed insertion into params
+   * via std::any_cast<T>.
+   *
+   * @param visitor The visitor (data reader) to accept.
+   * @param params The parameter handler to insert the converted value into.
+   */
+  virtual void accept(const parameter_visitor_base<KeyType>& visitor,
+                      ParameterHandler& params) const = 0;
+
+  /**
    * @brief Returns the name of the parameter.
    *
    * @return The name of the parameter.
    */
   inline const auto &name() const { return m_name; }
 
-private:
+  /**
+   * @brief Adds a typed child parameter.
+   *
+   * @tparam T The type of the child parameter.
+   * @param name The name of the child parameter.
+   * @return Reference to the newly created child input_parameter.
+   */
+  template <typename T>
+  auto &add_child(KeyType const &name) {
+    m_child.push_back(std::make_unique<input_parameter<T, KeyType, ParameterHandler>>(name));
+    return static_cast<input_parameter<T, KeyType, ParameterHandler>&>(*m_child.back());
+  }
+
+  /**
+   * @brief Returns the list of child parameters.
+   *
+   * @return Const reference to the child parameter list.
+   */
+  inline auto const& childs() const { return m_child; }
+
+  /**
+   * @brief Sets the description for this parameter.
+   *
+   * @param desc The description string.
+   * @return Reference to this object for chaining.
+   */
+  inline auto& description(std::string && desc) { m_description = std::move(desc); return *this; }
+
+  /**
+   * @brief Returns the description of the parameter.
+   *
+   * @return Const reference to the description string.
+   */
+  inline std::string const& description() const { return m_description; }
+
+protected:
   const KeyType m_name; ///< Name of the parameter.
+  std::list<child_type> m_child; ///< Child parameters.
+  std::string m_description; ///< Parameter description.
 };
 
+// --- input_parameter<T> ---
+
 /**
- * @brief Class for managing input parameters.
+ * @brief Typed input parameter with validation checks.
  *
- * This class allows the registration and validation of input parameters.
+ * Stores the concrete type T as a template parameter, provides runtime
+ * type identification via type_id(), and manages a list of validation checks.
  *
  * @tparam T The type of the parameter.
  * @tparam KeyType The type used as the key for the parameter.
@@ -471,7 +629,7 @@ public:
   explicit input_parameter(const KeyType &name) noexcept : base(name) {}
 
   /**
-   * @brief Constructs input_parameter with a rvalue name.
+   * @brief Constructs input_parameter with an rvalue name.
    *
    * @param name The name of the parameter.
    */
@@ -500,9 +658,36 @@ public:
   }
 
   /**
+   * @brief Returns the runtime type identifier for type T.
+   *
+   * @return std::type_index for typeid(T).
+   */
+  std::type_index type_id() const override { return typeid(T); }
+
+  /**
+   * @brief Accept a visitor: read value via visitor, insert with correct type.
+   *
+   * This is where the dispatch happens. The visitor reads from its data source
+   * and returns std::any. This method knows T, so it does the typed insertion
+   * into the parameter handler via std::any_cast<T>.
+   */
+  void accept(const parameter_visitor_base<KeyType>& visitor,
+              ParameterHandler& params) const override {
+    if (!visitor.contains(this->m_name)) return;
+    auto value = visitor.read(this->m_name, typeid(T));
+    try {
+      params.template insert<T>(this->m_name, std::any_cast<T>(std::move(value)));
+    } catch (const std::bad_any_cast&) {
+      throw std::runtime_error(
+          "input_parameter::accept(): type mismatch for '" + this->m_name +
+          "' — reader returned wrong type");
+    }
+  }
+
+  /**
    * @brief Adds a validation check for the parameter.
    *
-   * @tparam Check The type of the check class.
+   * @tparam Check The check class template (e.g., is_required, set_default).
    * @tparam Args The arguments to pass to the check constructor.
    * @param args The arguments to pass to the check constructor.
    * @return Reference to this input_parameter for chaining.
@@ -520,10 +705,15 @@ private:
       m_checks; ///< List of checks associated with the input parameter.
 };
 
+// --- input_parameter_controller ---
+
 /**
- * @brief Class for controlling input parameters.
+ * @brief Controller for managing a collection of input parameters.
  *
- * This class manages a collection of input parameters and their validations.
+ * Manages a map of named input parameters with their validation rules.
+ * Each parameter's expected C++ type is tracked via type_id() on the
+ * type-erased input_parameter_base, enabling runtime type dispatch
+ * (e.g., for JSON conversion) without requiring a compile-time variant.
  *
  * @tparam KeyType The type used as the key for the parameters.
  * @tparam ParameterHandler The type of the handler that manages parameters.
@@ -531,6 +721,9 @@ private:
 template <typename KeyType, typename ParameterHandler>
 class input_parameter_controller {
 public:
+  using key_type = KeyType;
+  using parameter_handler = ParameterHandler;
+
   /**
    * @brief Default constructor.
    */
@@ -539,7 +732,7 @@ public:
   /**
    * @brief Deleted copy constructor.
    */
-  input_parameter_controller(input_parameter_controller const &data) = delete;
+  input_parameter_controller(input_parameter_controller const &) = delete;
 
   /**
    * @brief Move constructor.
@@ -569,8 +762,7 @@ public:
   /**
    * @brief Deleted copy assignment operator.
    */
-  input_parameter_controller const &
-  operator=(input_parameter_controller const &data) = delete;
+  input_parameter_controller const &operator=(input_parameter_controller const &) = delete;
 
   /**
    * @brief Inserts a new input parameter into the controller.
@@ -582,8 +774,7 @@ public:
   template <typename T>
   input_parameter<T, KeyType, ParameterHandler> &insert(KeyType const &name) {
     auto &para{m_data[name]};
-    para =
-        std::move(std::make_unique<input_parameter<T, KeyType, ParameterHandler>>(name));
+    para = std::make_unique<input_parameter<T, KeyType, ParameterHandler>>(name);
     return *static_cast<input_parameter<T, KeyType, ParameterHandler> *>(para.get());
   }
 
@@ -591,10 +782,10 @@ public:
    * @brief Retrieves a parameter by its name.
    *
    * @param name The name of the parameter to retrieve.
-   * @return Reference to the input_parameter_base.
+   * @return Const reference to the input_parameter_base.
    */
-  const input_parameter_base<KeyType, ParameterHandler> &get(KeyType const &name) {
-    return *m_data[name].get();
+  const input_parameter_base<KeyType, ParameterHandler> &get(KeyType const &name) const {
+    return *m_data.at(name).get();
   }
 
   /**
@@ -602,11 +793,73 @@ public:
    *
    * @param parameter The parameter handler to check against.
    */
-  auto check_parameter(ParameterHandler &parameter) {
+  auto check_parameter(ParameterHandler &parameter) const {
     for (const auto &[key, check] : m_data) {
       check->check_parameter(parameter);
     }
   }
+
+  /**
+   * @brief Accept a visitor for all parameters: read, insert, then validate.
+   *
+   * Pairs {schema, data_source} → validated parameter_handler:
+   * 1. Each input_parameter<T> reads from the visitor and inserts into params.
+   * 2. Defaults are applied for missing parameters (with logging).
+   * 3. Remaining missing required parameters are collected and reported as one error.
+   * 4. Other validation checks (range, type) run and throw immediately on failure.
+   *
+   * @param visitor The data source visitor.
+   * @param params The parameter handler to fill and validate.
+   * @throws std::invalid_argument if any required parameters are missing or validation fails.
+   */
+  void accept(const parameter_visitor_base<KeyType>& visitor,
+              ParameterHandler& params) const {
+    // 1. Read values from visitor
+    std::unordered_set<KeyType> provided;
+    for (const auto& [key, param_ptr] : m_data) {
+      param_ptr->accept(visitor, params);
+      if (params.contains(key))
+        provided.insert(key);
+    }
+
+    // 2. Run checks — this applies defaults and validates
+    //    Separate is_required failures from other validation errors.
+    std::vector<KeyType> missing;
+    for (const auto& [key, param_ptr] : m_data) {
+      try {
+        param_ptr->check_parameter(params);
+      } catch (const std::invalid_argument&) {
+        // Only collect as "missing" if params still doesn't have it
+        // (set_default would have inserted it, so this is truly missing)
+        if (!params.contains(key))
+          missing.push_back(key);
+        else
+          throw; // re-throw range/type errors (value exists but is invalid)
+      }
+    }
+
+    // 3. Log defaults that were applied
+    for (const auto& [key, param_ptr] : m_data) {
+      if (!provided.contains(key) && params.contains(key))
+        std::println("    using default: '{}'", key);
+    }
+
+    // 4. Report all missing required parameters at once
+    if (!missing.empty()) {
+      std::println("  missing required parameters:");
+      for (const auto& key : missing)
+        std::println("    - {}", key);
+      throw std::invalid_argument(
+          "missing " + std::to_string(missing.size()) + " required parameter(s)");
+    }
+  }
+
+  auto contains(KeyType const &name) { return m_data.contains(name); }
+
+  auto begin() { return m_data.begin(); }
+  auto end() { return m_data.end(); }
+  auto begin() const { return m_data.begin(); }
+  auto end() const { return m_data.end(); }
 
 private:
   std::unordered_map<KeyType,
@@ -614,5 +867,5 @@ private:
       m_data; ///< Map of parameters managed by the controller.
 };
 
-} // namespace uvwCommon
+} // namespace numsim_core
 #endif // INPUT_PARAMETER_CONTROLLER_H
