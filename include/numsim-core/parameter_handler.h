@@ -52,6 +52,8 @@ public:
    */
   parameter_handler() {}
 
+  parameter_handler(parameter_handler const& data):m_data(data.m_data) {}
+
   /**
    * @brief Inserts or assigns a value to the specified key.
    *
@@ -273,82 +275,6 @@ private:
   std::unordered_map<KeyType, TypeErasure>
       m_data; ///< Internal storage for key-value pairs.
 };
-
-//#include <gtest/gtest.h>
-//#include <any>
-//#include <string>
-//#include <unordered_map>
-//#include <stdexcept>
-//#include "parameter_handler.h"  // Include the file with the parameter_handler class
-
-//// Test fixture class
-//class ParameterHandlerTest : public ::testing::Test {
-//protected:
-//  parameter_handler<> handler;
-//};
-
-//// Test for inserting and retrieving an integer value
-//TEST_F(ParameterHandlerTest, InsertAndRetrieveInt) {
-//  int value = 42;
-//  handler.insert("key1", value);
-
-//  EXPECT_EQ(handler.get<int>("key1"), value);
-//}
-
-//// Test for inserting and retrieving a string value
-//TEST_F(ParameterHandlerTest, InsertAndRetrieveString) {
-//  std::string value = "Hello";
-//  handler.insert("key2", value);
-
-//  EXPECT_EQ(handler.get<std::string>("key2"), value);
-//}
-
-//// Test for exception when retrieving a non-existing key
-//TEST_F(ParameterHandlerTest, GetThrowsWhenKeyNotFound) {
-//  EXPECT_THROW(handler.get<int>("non_existent_key"), std::invalid_argument);
-//}
-
-//// Test for checking if a key exists using contains
-//TEST_F(ParameterHandlerTest, Contains) {
-//  handler.insert("key3", 123);
-
-//  EXPECT_TRUE(handler.contains("key3"));
-//  EXPECT_FALSE(handler.contains("non_existent_key"));
-//}
-
-//// Test for retrieving data using the data() method
-//TEST_F(ParameterHandlerTest, RetrieveDataAsTypeErasure) {
-//  int value = 10;
-//  handler.insert("key4", value);
-
-//  const std::any &retrievedData = handler.data("key4");
-//  EXPECT_EQ(std::any_cast<int>(retrievedData), value);
-//}
-
-//// Test for clearing the handler
-//TEST_F(ParameterHandlerTest, ClearData) {
-//  handler.insert("key5", 100);
-//  handler.clear();
-
-//  EXPECT_FALSE(handler.contains("key5"));
-//}
-
-//// Test for inserting by moving key and value
-//TEST_F(ParameterHandlerTest, InsertMove) {
-//  std::string key = "key6";
-//  std::string value = "movable_string";
-
-//  handler.insert(std::move(key), std::move(value));
-
-//  EXPECT_EQ(handler.get<std::string>("key6"), "movable_string");
-//}
-
-//// Test for exception in data() when key is not found
-//TEST_F(ParameterHandlerTest, DataThrowsWhenKeyNotFound) {
-//  EXPECT_THROW(handler.data("non_existent_key"), std::invalid_argument);
-//}
-
-
 
 } // namespace numsim_core
 #endif // PARAMETER_HANDLER_H

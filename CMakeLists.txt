@@ -26,11 +26,8 @@ message(STATUS "Building v${${PROJECT_NAME}_VERSION}")
 # Header files
 set(${PROJECT_NAME}_HEADER
     ${${PROJECT_NAME}_INCLUDE_DIR}/factory_base_bones.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/factory_base_meat.h
     ${${PROJECT_NAME}_INCLUDE_DIR}/registry_bones.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/registry_meat.h
     ${${PROJECT_NAME}_INCLUDE_DIR}/warehouse_bones.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/warehouse_meat.h
     ${${PROJECT_NAME}_INCLUDE_DIR}/input_parameter_controller.h
     ${${PROJECT_NAME}_INCLUDE_DIR}/input_parser.h
     ${${PROJECT_NAME}_INCLUDE_DIR}/static_indexing.h
@@ -39,6 +36,8 @@ set(${PROJECT_NAME}_HEADER
     ${${PROJECT_NAME}_INCLUDE_DIR}/parameter_handler.h
     ${${PROJECT_NAME}_INCLUDE_DIR}/any_printer.h
     ${${PROJECT_NAME}_INCLUDE_DIR}/wrapper.h
+    ${${PROJECT_NAME}_INCLUDE_DIR}/input_parameter_enum_utils.h
+    ${${PROJECT_NAME}_INCLUDE_DIR}/function_registry.h
 )
 
 # Add the library
