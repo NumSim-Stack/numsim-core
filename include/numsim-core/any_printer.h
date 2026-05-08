@@ -70,7 +70,7 @@ private:
   std::any const &m_data; ///< The `std::any` object being printed.
 };
 
-const std::unordered_map<
+inline const std::unordered_map<
     std::type_index, std::function<void(std::any const &, std::ostream &)>> any_print_wrapper::any_print_visitor{
                                      /**
                                       * @brief Visitor for printing `int` values from a `std::any` object.
@@ -231,7 +231,7 @@ const std::unordered_map<
 
 } // namespace numsim_core
 
-numsim_core::any_print_wrapper print(std::any const &data) {
+inline numsim_core::any_print_wrapper print(std::any const &data) {
   return numsim_core::any_print_wrapper(data);
 }
 
