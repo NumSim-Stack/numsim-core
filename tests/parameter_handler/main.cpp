@@ -211,3 +211,63 @@ TEST_F(InputParameterTest, TestMultipleChecks_Fail) {
   // This should fail the test because the value is out of the allowed range
   EXPECT_THROW(paramController.check_parameter(handler), std::invalid_argument);
 }
+
+// ---------------------------------------------------------------------------
+// GUI-metadata hints (.min / .max / .units / .description)
+//
+// These attributes are read by GUI form-builders (e.g. Tessera) to render
+// type-aware widgets with bounded ranges, unit suffixes, and tooltips. They
+// do NOT participate in runtime validation — that's check_range's job.
+// ---------------------------------------------------------------------------
+
+TEST_F(InputParameterTest, TestMetadataDefaultsAreEmpty) {
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<double>("plain_param");
+
+  EXPECT_FALSE(param.min().has_value());
+  EXPECT_FALSE(param.max().has_value());
+  EXPECT_TRUE(param.units().empty());
+  EXPECT_TRUE(param.description().empty());
+}
+
+TEST_F(InputParameterTest, TestMetadataSettersChain) {
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<double>("radius");
+  param.min(0.0).max(1.0).units("m").description("particle radius");
+
+  ASSERT_TRUE(param.min().has_value());
+  EXPECT_DOUBLE_EQ(*param.min(), 0.0);
+  ASSERT_TRUE(param.max().has_value());
+  EXPECT_DOUBLE_EQ(*param.max(), 1.0);
+  EXPECT_EQ(param.units(), "m");
+  EXPECT_EQ(param.description(), "particle radius");
+}
+
+TEST_F(InputParameterTest, TestMetadataDoesNotEnforce) {
+  // Setting min/max attaches GUI hints but no runtime check. A value
+  // outside [min,max] still passes check_parameter() unless check_range
+  // is also added.
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("hint_only");
+  param.min(0.0).max(100.0);
+
+  handler.insert("hint_only", 999);
+  EXPECT_NO_THROW(paramController.check_parameter(handler));
+}
+
+TEST_F(InputParameterTest, TestMetadataReadableViaBaseRef) {
+  // Form-builders iterate the controller and read metadata via
+  // input_parameter_base — confirm the accessors work polymorphically.
+  using base_t = numsim_core::input_parameter_base<std::string, MockParameterHandler>;
+
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  paramController.insert<std::size_t>("nx").min(1.0).max(1024.0).units("cells").description("grid x-resolution");
+
+  base_t const &base_ref = paramController.get("nx");
+  ASSERT_TRUE(base_ref.min().has_value());
+  EXPECT_DOUBLE_EQ(*base_ref.min(), 1.0);
+  ASSERT_TRUE(base_ref.max().has_value());
+  EXPECT_DOUBLE_EQ(*base_ref.max(), 1024.0);
+  EXPECT_EQ(base_ref.units(), "cells");
+  EXPECT_EQ(base_ref.description(), "grid x-resolution");
+}

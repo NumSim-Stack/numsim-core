@@ -7,6 +7,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <optional>
 #include <print>
 #include <string>
 #include <typeindex>
@@ -595,10 +596,59 @@ public:
    */
   inline std::string const& description() const { return m_description; }
 
+  /**
+   * @brief Sets the minimum-value hint for this parameter.
+   *
+   * Stored as double regardless of the parameter's underlying C++ type;
+   * downcasting is the consumer's responsibility. Used by GUIs (e.g. Tessera)
+   * to bound spinbox ranges; not enforced by check_parameter (use
+   * `.add<check_range>(low, high)` for runtime validation).
+   *
+   * @param v The minimum value hint.
+   * @return Reference to this object for chaining.
+   */
+  inline auto& min(double v) noexcept { m_min = v; return *this; }
+
+  /**
+   * @brief Sets the maximum-value hint for this parameter.
+   *
+   * @param v The maximum value hint.
+   * @return Reference to this object for chaining.
+   */
+  inline auto& max(double v) noexcept { m_max = v; return *this; }
+
+  /**
+   * @brief Sets the units string for this parameter (e.g. "m", "rad", "%").
+   *
+   * Used by GUIs to suffix labels/spinboxes; ignored by validation.
+   *
+   * @param u The units string.
+   * @return Reference to this object for chaining.
+   */
+  inline auto& units(std::string u) { m_units = std::move(u); return *this; }
+
+  /**
+   * @brief Returns the minimum-value hint, if set.
+   */
+  inline std::optional<double> const& min() const noexcept { return m_min; }
+
+  /**
+   * @brief Returns the maximum-value hint, if set.
+   */
+  inline std::optional<double> const& max() const noexcept { return m_max; }
+
+  /**
+   * @brief Returns the units string (empty if unset).
+   */
+  inline std::string const& units() const noexcept { return m_units; }
+
 protected:
   const KeyType m_name; ///< Name of the parameter.
   std::list<child_type> m_child; ///< Child parameters.
   std::string m_description; ///< Parameter description.
+  std::optional<double> m_min; ///< Minimum-value hint for GUIs.
+  std::optional<double> m_max; ///< Maximum-value hint for GUIs.
+  std::string m_units; ///< Units string for GUIs (e.g. "m", "rad").
 };
 
 // --- input_parameter<T> ---
