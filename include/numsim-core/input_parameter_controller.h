@@ -168,6 +168,28 @@ public:
 };
 
 /**
+ * @brief Polymorphic side-base for any check that carries a free-form
+ * description string.
+ *
+ * Like \ref units_hint_base, the description is a compile-time string
+ * (NTTP fixed_string) so the accessor returns a string_view referencing
+ * static storage with zero runtime overhead. Used by GUI form generators
+ * for tooltips, by Doxygen-style doc generators, and by error
+ * formatters that want to print the human-readable name of a parameter.
+ */
+class description_hint_base {
+public:
+  description_hint_base() = default;
+  description_hint_base(description_hint_base const&) = delete;
+  description_hint_base(description_hint_base&&) = delete;
+  description_hint_base& operator=(description_hint_base const&) = delete;
+  description_hint_base& operator=(description_hint_base&&) = delete;
+  virtual ~description_hint_base() = default;
+
+  [[nodiscard]] virtual std::string_view description_text() const noexcept = 0;
+};
+
+/**
  * @brief Compile-time string wrapper usable as a non-type template
  * parameter (C++20 NTTP rules require a structural type — this is one).
  *
@@ -615,6 +637,57 @@ struct unit_label {
 
     [[nodiscard]] std::string_view units() const noexcept override {
       return Unit_.view();
+    }
+  };
+
+  template <typename T, typename KeyType, typename ParameterHandler>
+  [[nodiscard]] static auto instantiate(
+      input_parameter<T, KeyType, ParameterHandler> const& para)
+      -> std::unique_ptr<input_parameter_check_base<T, KeyType, ParameterHandler>> {
+    return std::make_unique<impl<T, KeyType, ParameterHandler>>(para);
+  }
+};
+
+// ===========================================================================
+// Description hint — pure metadata, no runtime check.
+//
+// Same shape as unit_label: NTTP fixed_string, side-base for
+// introspection, no-op runtime check, factory wrapper.
+//
+// Usage:
+//   s.template insert<std::size_t>("nx")
+//       .template add<numsim_core::is_required>()
+//       .template add<numsim_core::range<1u, 4096u>>()
+//       .template add<numsim_core::unit_label<"cells">>()
+//       .template add<numsim_core::description_label<
+//           "voxel-grid resolution along x">>();
+//
+// Consumed by GUI form-builders for tooltips and by error formatters
+// that want a human-readable name for the parameter.
+// ===========================================================================
+template <fixed_string Desc_>
+struct description_label {
+  template <typename T, typename KeyType, typename ParameterHandler>
+  class impl final
+      : public input_parameter_check_base<T, KeyType, ParameterHandler>,
+        public description_hint_base {
+  public:
+    using base = input_parameter_check_base<T, KeyType, ParameterHandler>;
+
+    impl() = delete;
+    impl(impl const&) = delete;
+    impl(impl&&) = delete;
+    impl& operator=(impl const&) = delete;
+    impl& operator=(impl&&) = delete;
+
+    explicit impl(
+        input_parameter<T, KeyType, ParameterHandler> const& para) noexcept
+        : base(para) {}
+
+    void check(ParameterHandler&) const final override {}  // no runtime check
+
+    [[nodiscard]] std::string_view description_text() const noexcept override {
+      return Desc_.view();
     }
   };
 
