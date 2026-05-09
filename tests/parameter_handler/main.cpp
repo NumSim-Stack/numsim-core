@@ -211,3 +211,140 @@ TEST_F(InputParameterTest, TestMultipleChecks_Fail) {
   // This should fail the test because the value is out of the allowed range
   EXPECT_THROW(paramController.check_parameter(handler), std::invalid_argument);
 }
+
+// ---------------------------------------------------------------------------
+// Policy hints: range<Min, Max> and unit_label<"...">
+// ---------------------------------------------------------------------------
+
+using numsim_core::range;
+using numsim_core::range_hint_base;
+using numsim_core::unit_label;
+using numsim_core::units_hint_base;
+
+TEST_F(InputParameterTest, TestRangePolicyAcceptsInBoundsValue) {
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<range<1, 4096>>();
+
+  handler.insert("nx", 1024);
+
+  EXPECT_NO_THROW(paramController.check_parameter(handler));
+}
+
+TEST_F(InputParameterTest, TestRangePolicyRejectsBelowMin) {
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<range<1, 4096>>();
+
+  handler.insert("nx", 0);
+
+  EXPECT_THROW(paramController.check_parameter(handler), std::invalid_argument);
+}
+
+TEST_F(InputParameterTest, TestRangePolicyRejectsAboveMax) {
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<range<1, 4096>>();
+
+  handler.insert("nx", 5000);
+
+  EXPECT_THROW(paramController.check_parameter(handler), std::invalid_argument);
+}
+
+TEST_F(InputParameterTest, TestRangePolicyExposesBoundsViaSideBase) {
+  // GUI introspection: walk the parameter's checks and dynamic_cast each
+  // to range_hint_base. The first match yields the bounds as std::any
+  // wrapping the parameter's underlying type.
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<range<1, 4096>>();
+
+  range_hint_base const* hint = nullptr;
+  for (auto const& check : param.checks()) {
+    if (auto const* h = dynamic_cast<range_hint_base const*>(check.get())) {
+      hint = h;
+      break;
+    }
+  }
+  ASSERT_NE(hint, nullptr);
+  EXPECT_EQ(std::any_cast<int>(hint->min_value()), 1);
+  EXPECT_EQ(std::any_cast<int>(hint->max_value()), 4096);
+}
+
+TEST_F(InputParameterTest, TestRangePolicyDoesNotFireWhenParameterMissing) {
+  // Like check_range, the policy is silent for absent parameters —
+  // is_required is the policy that catches missing values. Two-policy
+  // composition lets the schema express "must be present AND in range"
+  // explicitly without conflating the concerns.
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<range<1, 4096>>();
+
+  EXPECT_NO_THROW(paramController.check_parameter(handler));
+}
+
+TEST_F(InputParameterTest, TestUnitLabelPolicyExposesUnits) {
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<unit_label<"cells">>();
+
+  units_hint_base const* hint = nullptr;
+  for (auto const& check : param.checks()) {
+    if (auto const* h = dynamic_cast<units_hint_base const*>(check.get())) {
+      hint = h;
+      break;
+    }
+  }
+  ASSERT_NE(hint, nullptr);
+  EXPECT_EQ(hint->units(), std::string_view{"cells"});
+}
+
+TEST_F(InputParameterTest, TestUnitLabelPolicyHasNoRuntimeCheck) {
+  // Pure metadata — neither presence nor any value should trigger an
+  // exception from the unit_label policy alone.
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<unit_label<"cells">>();
+
+  EXPECT_NO_THROW(paramController.check_parameter(handler));   // missing
+  handler.insert("nx", -42);
+  EXPECT_NO_THROW(paramController.check_parameter(handler));   // present, any value
+}
+
+TEST_F(InputParameterTest, TestPolicyCompositionWithExistingChecks) {
+  // is_required + range + unit_label compose. Each carries its own
+  // concern; they don't interfere.
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<is_required>();
+  param.add<range<1, 4096>>();
+  param.add<unit_label<"cells">>();
+
+  handler.insert("nx", 256);
+
+  EXPECT_NO_THROW(paramController.check_parameter(handler));
+
+  // Verify both side-bases are reachable.
+  bool found_range = false, found_units = false;
+  for (auto const& check : param.checks()) {
+    if (dynamic_cast<range_hint_base const*>(check.get())) found_range = true;
+    if (dynamic_cast<units_hint_base const*>(check.get())) found_units = true;
+  }
+  EXPECT_TRUE(found_range);
+  EXPECT_TRUE(found_units);
+}
+
+TEST_F(InputParameterTest, TestRangePolicyWithDoubleBounds) {
+  // Bounds match the parameter's underlying type via static_cast — for a
+  // double parameter, write the literals as 0.0 / 1.0 so the NTTP types
+  // line up.
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<double>("target_fraction");
+  param.add<range<0.0, 1.0>>();
+
+  handler.insert("target_fraction", 0.25);
+  EXPECT_NO_THROW(paramController.check_parameter(handler));
+
+  handler.insert("target_fraction", 1.5);
+  EXPECT_THROW(paramController.check_parameter(handler), std::invalid_argument);
+}

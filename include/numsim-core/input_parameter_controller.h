@@ -1,7 +1,10 @@
 #ifndef INPUT_PARAMETER_CONTROLLER_H
 #define INPUT_PARAMETER_CONTROLLER_H
 
+#include <algorithm>
 #include <any>
+#include <concepts>
+#include <cstddef>
 #include <exception>
 #include <fstream>
 #include <functional>
@@ -9,6 +12,8 @@
 #include <memory>
 #include <print>
 #include <string>
+#include <string_view>
+#include <type_traits>
 #include <typeindex>
 #include <unordered_map>
 #include <unordered_set>
@@ -103,6 +108,83 @@ protected:
   input_parameter<T, KeyType, ParameterHandler> const &m_para;
 
   std::string m_description;
+};
+
+// ===========================================================================
+// GUI hint policies
+//
+// These are *advisory* metadata attached to a parameter for downstream
+// form generators (Tessera, Python introspection, Doxygen-driven docs).
+// They live in the same `m_checks` slot as the runtime checks
+// (is_required, check_range, set_default) and follow the same
+// `add<...>()` extension pattern, but expose their data via parallel
+// side-base classes (range_hint_base, units_hint_base) so a GUI can
+// dynamic_cast against the base and read the hint without knowing the
+// concrete NTTP-parameterised instantiation.
+//
+// Why side-base classes instead of accessor virtuals on
+// input_parameter_check_base: keeps the check base free of
+// metadata-shape concerns, allows hint kinds to grow independently,
+// and makes "does this check carry bounds?" a single dynamic_cast.
+// ===========================================================================
+
+/**
+ * @brief Polymorphic side-base for any check that carries numerical
+ * bounds — `range<Min, Max>` is the only built-in implementer today.
+ *
+ * Returns the bounds as `std::any` so callers can read them as the
+ * parameter's underlying type (`std::any_cast<std::size_t>(b.min_value())`)
+ * without the base needing to be templated on T.
+ */
+class range_hint_base {
+public:
+  range_hint_base() = default;
+  range_hint_base(range_hint_base const&) = delete;
+  range_hint_base(range_hint_base&&) = delete;
+  range_hint_base& operator=(range_hint_base const&) = delete;
+  range_hint_base& operator=(range_hint_base&&) = delete;
+  virtual ~range_hint_base() = default;
+
+  [[nodiscard]] virtual std::any min_value() const = 0;
+  [[nodiscard]] virtual std::any max_value() const = 0;
+};
+
+/**
+ * @brief Polymorphic side-base for any check that carries a unit label.
+ *
+ * The label is a compile-time string (NTTP fixed_string), so the
+ * accessor returns a string_view referencing static storage.
+ */
+class units_hint_base {
+public:
+  units_hint_base() = default;
+  units_hint_base(units_hint_base const&) = delete;
+  units_hint_base(units_hint_base&&) = delete;
+  units_hint_base& operator=(units_hint_base const&) = delete;
+  units_hint_base& operator=(units_hint_base&&) = delete;
+  virtual ~units_hint_base() = default;
+
+  [[nodiscard]] virtual std::string_view units() const noexcept = 0;
+};
+
+/**
+ * @brief Compile-time string wrapper usable as a non-type template
+ * parameter (C++20 NTTP rules require a structural type — this is one).
+ *
+ * Used by `unit_label<"...">` to carry the unit literal at compile time
+ * with zero runtime overhead.
+ */
+template <std::size_t N>
+struct fixed_string {
+  char data[N]{};
+
+  constexpr fixed_string(char const (&s)[N]) {
+    std::copy_n(s, N, data);
+  }
+
+  [[nodiscard]] constexpr std::string_view view() const noexcept {
+    return {data, N - 1};  // strip trailing '\0' from the literal
+  }
 };
 
 /**
@@ -425,6 +507,141 @@ public:
   }
 };
 
+// ===========================================================================
+// Compile-time-bounded range hint
+//
+// Combines a runtime range check (analogous to check_range) with GUI
+// introspection (range_hint_base). Bounds are NTTP, so the values are
+// known at compile time and the check carries zero per-instance state.
+//
+// Usage:
+//   s.template insert<std::size_t>("nx")
+//       .template add<numsim_core::is_required>()
+//       .template add<numsim_core::range<1u, 4096u>>()
+//       .description("voxel grid resolution along x");
+//
+// Type rules: Min and Max must be the same type (enforced via
+// static_assert). The runtime bounds are static_cast<T>(Min/Max), so
+// integer literals like `1` work for size_t parameters; for floating
+// parameters write `0.0` / `1.0` explicitly to keep the bound type
+// matching the parameter type.
+// ===========================================================================
+template <auto Min_, auto Max_>
+struct range {
+  static_assert(std::is_same_v<decltype(Min_), decltype(Max_)>,
+                "range<Min, Max>: bounds must have the same type");
+
+  /**
+   * @brief Concrete check class — instantiated by the input_parameter's
+   * `add<>()` overload via the static `instantiate()` factory below.
+   */
+  template <typename T, typename KeyType, typename ParameterHandler>
+  class impl final
+      : public input_parameter_check_base<T, KeyType, ParameterHandler>,
+        public range_hint_base {
+  public:
+    using base = input_parameter_check_base<T, KeyType, ParameterHandler>;
+
+    impl() = delete;
+    impl(impl const&) = delete;
+    impl(impl&&) = delete;
+    impl& operator=(impl const&) = delete;
+    impl& operator=(impl&&) = delete;
+
+    explicit impl(
+        input_parameter<T, KeyType, ParameterHandler> const& para) noexcept
+        : base(para) {}
+
+    void check(ParameterHandler& input) const final override {
+      const auto& name = this->m_para.name();
+      if (!input.contains(name)) return;
+      const T value = input.template get<T>(name);
+      const T lo = static_cast<T>(Min_);
+      const T hi = static_cast<T>(Max_);
+      if (value < lo || value > hi) {
+        throw std::invalid_argument(
+            "Parameter '" + name + "' is out of range");
+      }
+    }
+
+    [[nodiscard]] std::any min_value() const override {
+      return std::any{static_cast<T>(Min_)};
+    }
+    [[nodiscard]] std::any max_value() const override {
+      return std::any{static_cast<T>(Max_)};
+    }
+  };
+
+  /**
+   * @brief Factory that the typename-overload of `add<>()` invokes.
+   * Returns a unique_ptr to the concrete check class. Hides the
+   * inheritance details from the call site.
+   */
+  template <typename T, typename KeyType, typename ParameterHandler>
+  [[nodiscard]] static auto instantiate(
+      input_parameter<T, KeyType, ParameterHandler> const& para)
+      -> std::unique_ptr<input_parameter_check_base<T, KeyType, ParameterHandler>> {
+    return std::make_unique<impl<T, KeyType, ParameterHandler>>(para);
+  }
+};
+
+// ===========================================================================
+// Unit label hint — pure metadata, no runtime check.
+//
+// Usage:
+//   s.template insert<std::size_t>("nx")
+//       .template add<numsim_core::unit_label<"cells">>();
+// ===========================================================================
+template <fixed_string Unit_>
+struct unit_label {
+  template <typename T, typename KeyType, typename ParameterHandler>
+  class impl final
+      : public input_parameter_check_base<T, KeyType, ParameterHandler>,
+        public units_hint_base {
+  public:
+    using base = input_parameter_check_base<T, KeyType, ParameterHandler>;
+
+    impl() = delete;
+    impl(impl const&) = delete;
+    impl(impl&&) = delete;
+    impl& operator=(impl const&) = delete;
+    impl& operator=(impl&&) = delete;
+
+    explicit impl(
+        input_parameter<T, KeyType, ParameterHandler> const& para) noexcept
+        : base(para) {}
+
+    void check(ParameterHandler&) const final override {}  // no runtime check
+
+    [[nodiscard]] std::string_view units() const noexcept override {
+      return Unit_.view();
+    }
+  };
+
+  template <typename T, typename KeyType, typename ParameterHandler>
+  [[nodiscard]] static auto instantiate(
+      input_parameter<T, KeyType, ParameterHandler> const& para)
+      -> std::unique_ptr<input_parameter_check_base<T, KeyType, ParameterHandler>> {
+    return std::make_unique<impl<T, KeyType, ParameterHandler>>(para);
+  }
+};
+
+/**
+ * @brief Concept matching any hint type that provides a static
+ * `instantiate(para)` factory returning a unique_ptr to a check_base.
+ *
+ * Used to gate the typename-overload of `input_parameter::add()` so it
+ * doesn't shadow the existing template-template-parameter overload.
+ */
+template <typename Hint, typename T, typename KeyType, typename ParameterHandler>
+concept InstantiatableHint =
+    requires(input_parameter<T, KeyType, ParameterHandler> const& p) {
+      {
+        Hint::template instantiate<T, KeyType, ParameterHandler>(p)
+      } -> std::same_as<
+          std::unique_ptr<input_parameter_check_base<T, KeyType, ParameterHandler>>>;
+    };
+
 // --- parameter_visitor_base ---
 
 /**
@@ -699,6 +916,35 @@ public:
         *this, std::forward<Args>(args)...));
     return *this;
   }
+
+  /**
+   * @brief Adds a hint policy parameterised by NTTPs.
+   *
+   * Distinct overload from the template-template-parameter `add()` above:
+   *   - The existing form takes a class template (e.g. `add<is_required>()`)
+   *     and instantiates it with `<T, KeyType, ParameterHandler>`.
+   *   - This form takes a complete type (e.g. `add<range<1u, 4096u>>()`)
+   *     and delegates to the type's static `instantiate()` factory.
+   *
+   * The `InstantiatableHint` concept selects this overload only for
+   * types that provide the factory; ordinary class templates fall
+   * through to the template-template overload as before.
+   */
+  template <typename Hint>
+  auto &add() requires InstantiatableHint<Hint, T, KeyType, ParameterHandler> {
+    m_checks.push_back(
+        Hint::template instantiate<T, KeyType, ParameterHandler>(*this));
+    return *this;
+  }
+
+  /**
+   * @brief Read-only access to the validation / hint check list.
+   *
+   * Used by GUI form generators to walk the parameter's policies and
+   * dynamic_cast against `range_hint_base` / `units_hint_base` to
+   * extract metadata.
+   */
+  [[nodiscard]] auto const& checks() const noexcept { return m_checks; }
 
 private:
   std::vector<std::unique_ptr<input_parameter_check_base<T, KeyType, ParameterHandler>>>
