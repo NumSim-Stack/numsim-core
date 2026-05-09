@@ -157,7 +157,10 @@ TEST_F(InputParameterTest, TestInvalidType) {
   param.add<check_data_type>();
 
   handler.insert("param_with_wrong_type", std::string("not_an_int"));
-  EXPECT_THROW(paramController.check_parameter(handler), std::bad_any_cast);
+  // The check catches std::bad_any_cast internally and rethrows as
+  // std::invalid_argument with a parameter-named diagnostic — strictly
+  // more useful than the bare bad_any_cast which carries no context.
+  EXPECT_THROW(paramController.check_parameter(handler), std::invalid_argument);
 }
 
 TEST_F(InputParameterTest, TestRequiredParameterMissing_Fail) {
