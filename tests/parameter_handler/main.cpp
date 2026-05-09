@@ -351,3 +351,62 @@ TEST_F(InputParameterTest, TestRangePolicyWithDoubleBounds) {
   handler.insert("target_fraction", 1.5);
   EXPECT_THROW(paramController.check_parameter(handler), std::invalid_argument);
 }
+
+// ---------------------------------------------------------------------------
+// description_label policy
+// ---------------------------------------------------------------------------
+
+using numsim_core::description_hint_base;
+using numsim_core::description_label;
+
+TEST_F(InputParameterTest, TestDescriptionLabelExposesText) {
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<description_label<"voxel-grid resolution along x">>();
+
+  description_hint_base const* hint = nullptr;
+  for (auto const& check : param.checks()) {
+    if (auto const* h = dynamic_cast<description_hint_base const*>(check.get())) {
+      hint = h;
+      break;
+    }
+  }
+  ASSERT_NE(hint, nullptr);
+  EXPECT_EQ(hint->description_text(),
+            std::string_view{"voxel-grid resolution along x"});
+}
+
+TEST_F(InputParameterTest, TestDescriptionLabelHasNoRuntimeCheck) {
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<description_label<"a description">>();
+
+  EXPECT_NO_THROW(paramController.check_parameter(handler));   // missing
+  handler.insert("nx", -1);
+  EXPECT_NO_THROW(paramController.check_parameter(handler));   // present, any value
+}
+
+TEST_F(InputParameterTest, TestFullPolicyComposition) {
+  // The four canonical policies compose: validation (is_required +
+  // range) plus pure metadata (unit_label + description_label). Each
+  // side-base is independently introspectable from the GUI side.
+  input_parameter_controller<std::string, MockParameterHandler> paramController;
+  auto &param = paramController.insert<int>("nx");
+  param.add<is_required>();
+  param.add<range<1, 4096>>();
+  param.add<unit_label<"cells">>();
+  param.add<description_label<"voxel-grid resolution along x">>();
+
+  handler.insert("nx", 256);
+  EXPECT_NO_THROW(paramController.check_parameter(handler));
+
+  bool found_range = false, found_units = false, found_desc = false;
+  for (auto const& check : param.checks()) {
+    if (dynamic_cast<range_hint_base const*>(check.get())) found_range = true;
+    if (dynamic_cast<units_hint_base const*>(check.get())) found_units = true;
+    if (dynamic_cast<description_hint_base const*>(check.get())) found_desc = true;
+  }
+  EXPECT_TRUE(found_range);
+  EXPECT_TRUE(found_units);
+  EXPECT_TRUE(found_desc);
+}
