@@ -7,8 +7,11 @@ include(FetchContent)
 # Set project include directory
 set(${PROJECT_NAME}_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME})
 
-# Set C++ standard requirements
-set(CMAKE_CXX_STANDARD 20)
+# Default C++ standard for examples / tests / anything in this tree that
+# doesn't pick its own. The library's own C++23 requirement is declared
+# below as an INTERFACE compile feature on the target itself, so consumers
+# inherit it through the linked target — independently of this default.
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -40,24 +43,31 @@ set(${PROJECT_NAME}_HEADER
     ${${PROJECT_NAME}_INCLUDE_DIR}/function_registry.h
 )
 
-# Add the library
-add_library(${PROJECT_NAME} STATIC ${${PROJECT_NAME}_HEADER})
-
-# Explicitly set the linker language
-set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
-
-# Add alias for easier linking
+# numsim-core is header-only: no sources, no compiled artefacts, just an
+# INTERFACE target carrying include paths + a C++23 feature requirement
+# that propagates to every consumer.
+#
+# Previously declared as STATIC with the headers listed as sources, plus
+# `target_compile_features(... PRIVATE cxx_std_20)`. Both were bugs:
+#   - STATIC with header-only "sources" produces an empty archive.
+#   - PRIVATE on a header-only target doesn't propagate, so consumers
+#     compiled with whatever standard they happened to have — and broke
+#     on `<print>` from input_parameter_controller.h.
+add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-# Include directories
-target_include_directories(
-  ${PROJECT_NAME}
-  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-          $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+# Headers are reachable from the build tree and from the install tree.
+target_include_directories(${PROJECT_NAME}
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-# Enable required C++ features
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
+# C++23 propagates via INTERFACE — every consumer that links
+# numsim-core::numsim-core inherits the requirement and gets compiled
+# with at least C++23. This is what makes `#include <print>` work in
+# downstream TUs (rvegen, Tessera, etc.).
+target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_23)
 
 # Build options
 option(${PROJECT_NAME}_INSTALL_LIBRARY "Enable installing of ${PROJECT_NAME} library" ON)
