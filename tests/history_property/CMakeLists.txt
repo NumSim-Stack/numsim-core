@@ -1,0 +1,1 @@
+add_numsim_core_test(history_property_test main.cpp)
