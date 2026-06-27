@@ -57,6 +57,10 @@ TEST(HistoryPropertySerialize, NonTrivialWithAdlHook) {
                                       property_traits{});
   std::ostringstream os;
   h.serialize(os); // uses numsim_serialize via ADL
+  // Payload is non-trivially-copyable, so the raw-byte branch is if-constexpr-
+  // discarded and the hook branch is provably taken; a silently-empty hook
+  // would still "round-trip" empty vectors, so pin that bytes were produced.
+  EXPECT_FALSE(os.str().empty());
 
   history_property<hooked::Payload> g(hooked::Payload{}, hooked::Payload{},
                                       property_traits{});
@@ -88,14 +92,42 @@ TEST(HistoryPropertySerialize, NonTrivialWithoutHookIsStorable) {
   h.revert();
   EXPECT_EQ(h.new_value().data, (std::vector<int>{2, 3}));
 
-  // clone() copy-constructs — valid for any copyable T.
+  // clone() copy-constructs a deep, independent, correctly-typed copy.
   auto c = h.clone();
-  EXPECT_NE(c, nullptr);
+  ASSERT_NE(c, nullptr);
+  auto *d = dynamic_cast<history_property<NoHook> *>(c.get());
+  ASSERT_NE(d, nullptr);
+  EXPECT_EQ(d->old_value().data, h.old_value().data);
+  EXPECT_EQ(d->new_value().data, h.new_value().data);
+  h.new_value().data = {42}; // mutate the source …
+  EXPECT_EQ(d->new_value().data, (std::vector<int>{2, 3})); // … clone unaffected
 
   // Serialization is the ONLY operation that requires a hook; without one it
-  // throws at call time rather than blocking instantiation.
+  // throws at call time rather than blocking instantiation. Match on the
+  // message so a wrong-path throw can't satisfy the assertion.
+  auto throws_with = [](auto &&fn, const char *needle) {
+    try {
+      fn();
+    } catch (const std::runtime_error &e) {
+      return std::string(e.what()).find(needle) != std::string::npos;
+    } catch (...) {
+      return false;
+    }
+    return false;
+  };
   std::ostringstream os;
-  EXPECT_THROW(h.serialize(os), std::runtime_error);
+  EXPECT_TRUE(throws_with([&] { h.serialize(os); }, "numsim_serialize"));
   std::istringstream is("ignored");
-  EXPECT_THROW(h.deserialize(is), std::runtime_error);
+  EXPECT_TRUE(throws_with([&] { h.deserialize(is); }, "numsim_deserialize"));
 }
+
+// ── Contract notes (compile-time-enforced, so not runtime tests) ─────────────
+// The dispatch now rejects two silent-correctness hazards at COMPILE time, so
+// they cannot be expressed as runtime tests (they would fail to build):
+//   • a trivially-copyable T that ALSO defines a numsim_serialize hook
+//     (ambiguous — the raw-byte path would silently win); and
+//   • a type defining exactly ONE of numsim_serialize / numsim_deserialize
+//     (you could write state you can never read back).
+// Both are guarded by static_asserts inside the taken if-constexpr branches of
+// serialize()/deserialize(); a type with NEITHER hook still compiles (it takes
+// the throwing else-branch), which is what NonTrivialWithoutHookIsStorable pins.
