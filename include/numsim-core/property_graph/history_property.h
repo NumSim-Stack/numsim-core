@@ -1,13 +1,65 @@
 #ifndef NUMSIM_CORE_PG_HISTORY_PROPERTY_H
 #define NUMSIM_CORE_PG_HISTORY_PROPERTY_H
 
+#include <istream>
+#include <ostream>
+#include <stdexcept>
 #include <type_traits>
+#include <utility>
 #include <numsim-core/property_graph/property.h>
 
 namespace numsim_core {
 
 template<typename T, typename Traits>
 class history_property;
+
+// ── Serialization customization point ───────────────────────────────────────
+// A history_property byte-serializes trivially-copyable values directly. For a
+// value type that is NOT trivially copyable (e.g. a tmech::tensor, which is
+// copyable+assignable but carries user-provided special members, or any type
+// with heap state), provide free functions found by ADL in the type's namespace:
+//
+//   void numsim_serialize(std::ostream&, T const& old_v, T const& new_v);
+//   void numsim_deserialize(std::istream&, T& old_v, T& new_v);
+//
+// Whether a hook exists is a property of the SERIALIZE operation, not of being
+// storable as history — so its absence is a *runtime* error only if serialize()
+// is actually called, never a compile-time barrier to instantiating
+// history_property<T>. (The previous design enforced trivial-copyability via a
+// static_assert in the virtual serialize() body, which the compiler evaluates
+// when the class specialization is completed — making history_property<T>
+// uninstantiable for any non-trivially-copyable T even when never serialized,
+// and diverging across compilers per [temp.inst]/11 on virtual instantiation.)
+//
+// ⚠ ODR: the hook MUST be declared in T's own header (an associated namespace of
+// T), so that EVERY translation unit instantiating history_property<T> sees it.
+// has_numsim_serialize<T> is detected by ADL at the point of instantiation; if
+// the hook were visible in some TUs but not others, the trait — and the
+// serialize() virtual body that branches on it — would differ across TUs, a
+// silent ODR violation. Declaring the hook beside T guarantees uniform
+// visibility. Provide BOTH hooks or NEITHER: defining only one is rejected at
+// compile time (you could otherwise write state you can never read back).
+//
+// ⚠ FORMAT: the trivially-copyable path is a raw, host-native, same-build byte
+// dump (no endianness/padding normalization, no version tag) — NOT a portable
+// archive format. For portability provide a hook for an explicitly-encoded type
+// (note: a hook on a *trivially-copyable* T is rejected as ambiguous — make such
+// a type non-trivially-copyable, or wrap it, if it needs a portable encoding).
+template <typename T, typename = void>
+struct has_numsim_serialize : std::false_type {};
+template <typename T>
+struct has_numsim_serialize<
+    T, std::enable_if_t<std::is_void_v<decltype(numsim_serialize(
+           std::declval<std::ostream &>(), std::declval<T const &>(),
+           std::declval<T const &>()))>>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_numsim_deserialize : std::false_type {};
+template <typename T>
+struct has_numsim_deserialize<
+    T, std::enable_if_t<std::is_void_v<decltype(numsim_deserialize(
+           std::declval<std::istream &>(), std::declval<T &>(),
+           std::declval<T &>()))>>> : std::true_type {};
 
 template<typename T, typename Traits>
 auto make_history_property(T&& old_value, T&& new_value, Traits&& traits) {
@@ -40,23 +92,64 @@ public:
                 "history_property does not support reference types");
 
   bool is_history() const noexcept override { return true; }
+  // NOTE: commit()/revert() are noexcept (matching the base contract) and use
+  // T's copy-assignment. They are safe for the intended value types — scalars
+  // and tmech::tensor (whose operator= is noexcept) — but a T with a throwing
+  // copy-assignment (e.g. one holding a std::vector, under allocation failure)
+  // would call std::terminate here. Such a T is now instantiable (the old
+  // static_assert that blocked it is gone), so this precondition is on the
+  // value type, not enforced at compile time.
   void commit() noexcept override { m_old = m_new; }
   void revert() noexcept override { m_new = m_old; }
 
-  /// Serialize old and new values as raw bytes.
-  /// Only valid for trivially copyable types (scalars, tensors).
+  /// Serialize old and new values. Trivially-copyable types are written as raw
+  /// bytes; otherwise a `numsim_serialize` ADL hook is used (see the
+  /// customization point above). A non-trivially-copyable type without a hook
+  /// throws here — but instantiating history_property<T> never requires either.
   void serialize(std::ostream& os) const override {
-    static_assert(std::is_trivially_copyable_v<T>,
-                  "history_property::serialize requires trivially copyable type");
-    os.write(reinterpret_cast<const char*>(&m_old), sizeof(T));
-    os.write(reinterpret_cast<const char*>(&m_new), sizeof(T));
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      static_assert(!has_numsim_serialize<T>::value,
+                    "history_property<T>: T is trivially copyable AND provides a "
+                    "numsim_serialize hook — ambiguous (the raw-byte path would "
+                    "silently win). Drop the hook, or make T non-trivially-"
+                    "copyable if it needs an explicit/portable encoding.");
+      os.write(reinterpret_cast<const char*>(&m_old), sizeof(T));
+      os.write(reinterpret_cast<const char*>(&m_new), sizeof(T));
+      if (!os)
+        throw std::runtime_error(
+            "history_property::serialize: stream write failed");
+    } else if constexpr (has_numsim_serialize<T>::value) {
+      static_assert(has_numsim_deserialize<T>::value,
+                    "history_property<T>: T provides numsim_serialize but not "
+                    "numsim_deserialize — state could be written and never read "
+                    "back. Provide both hooks or neither.");
+      numsim_serialize(os, m_old, m_new); // ADL
+    } else {
+      throw std::runtime_error(
+          "history_property::serialize: value type is not trivially copyable "
+          "and has no numsim_serialize(std::ostream&, T const&, T const&) "
+          "overload reachable by ADL");
+    }
   }
 
   void deserialize(std::istream& is) override {
-    static_assert(std::is_trivially_copyable_v<T>,
-                  "history_property::deserialize requires trivially copyable type");
-    is.read(reinterpret_cast<char*>(&m_old), sizeof(T));
-    is.read(reinterpret_cast<char*>(&m_new), sizeof(T));
+    if constexpr (std::is_trivially_copyable_v<T>) {
+      is.read(reinterpret_cast<char*>(&m_old), sizeof(T));
+      is.read(reinterpret_cast<char*>(&m_new), sizeof(T));
+      if (!is)
+        throw std::runtime_error(
+            "history_property::deserialize: stream read failed or truncated");
+    } else if constexpr (has_numsim_deserialize<T>::value) {
+      static_assert(has_numsim_serialize<T>::value,
+                    "history_property<T>: T provides numsim_deserialize but not "
+                    "numsim_serialize — provide both hooks or neither.");
+      numsim_deserialize(is, m_old, m_new); // ADL
+    } else {
+      throw std::runtime_error(
+          "history_property::deserialize: value type is not trivially copyable "
+          "and has no numsim_deserialize(std::istream&, T&, T&) overload "
+          "reachable by ADL");
+    }
   }
 
 private:

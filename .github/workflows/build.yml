@@ -1,0 +1,55 @@
+name: CMake build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          # gcc-14 ships its own libstdc++-14 with the C++23 standard-library
+          # features the project requires. Available in ubuntu-24.04 directly.
+          - { name: gcc-14,   cc: gcc-14,   cxx: g++-14 }
+          # clang-19 from the LLVM apt repo, paired with libstdc++-14. clang is
+          # the compiler that exposes the history_property #16 regression
+          # (eager instantiation of unused virtuals per [temp.inst]/11), so it
+          # MUST be in the matrix — a gcc-only build is false-green for that fix.
+          - { name: clang-19, cc: clang-19, cxx: clang++-19 }
+        build_type: [Debug, Release]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install compiler
+        run: |
+          sudo apt-get update
+          if [[ "${{ matrix.compiler.cxx }}" == clang* ]]; then
+            wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | \
+              sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
+            echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-19 main" | \
+              sudo tee /etc/apt/sources.list.d/llvm.list
+            sudo apt-get update
+          fi
+          sudo apt-get install -y ${{ matrix.compiler.cxx }}
+          # libstdc++-14 alongside clang so it picks the newer C++23 headers.
+          if [[ "${{ matrix.compiler.cxx }}" == clang* ]]; then
+            sudo apt-get install -y libstdc++-14-dev
+          fi
+
+      - name: Configure
+        env:
+          CC: ${{ matrix.compiler.cc }}
+          CXX: ${{ matrix.compiler.cxx }}
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j$(nproc)
