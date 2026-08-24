@@ -27,21 +27,6 @@ set(${PROJECT_NAME}_VERSION ${project_version})
 message(STATUS "Building v${${PROJECT_NAME}_VERSION}")
 
 # Header files
-set(${PROJECT_NAME}_HEADER
-    ${${PROJECT_NAME}_INCLUDE_DIR}/factory_base_bones.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/registry_bones.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/warehouse_bones.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/input_parameter_controller.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/input_parser.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/static_indexing.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/numsim_core_utility.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/query_map.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/parameter_handler.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/any_printer.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/wrapper.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/input_parameter_enum_utils.h
-    ${${PROJECT_NAME}_INCLUDE_DIR}/function_registry.h
-)
 
 # numsim-core is header-only: no sources, no compiled artefacts, just an
 # INTERFACE target carrying include paths + a C++23 feature requirement
@@ -55,6 +40,14 @@ set(${PROJECT_NAME}_HEADER
 #     on `<print>` from input_parameter_controller.h.
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+
+# GNUInstallDirs BEFORE the target_include_directories() below, not after it.
+# CMAKE_INSTALL_INCLUDEDIR is expanded when the line is read, so with the
+# include further down the INSTALL_INTERFACE expanded EMPTY and the exported
+# target carried no include directory at all -- consumers of the installed
+# package could find it and not compile against it. An empty INSTALL_INTERFACE
+# is legal, so nothing warned.
+include(GNUInstallDirs)
 
 # Headers are reachable from the build tree and from the install tree.
 target_include_directories(${PROJECT_NAME}
@@ -78,7 +71,6 @@ option(DOWNLOAD_GTEST "Download and build GTest" OFF)
 option(DOWNLOAD_GBENCHMARK "Download and build Google Benchmark" OFF)
 
 # Installation logic
-include(GNUInstallDirs)
 if(${PROJECT_NAME}_INSTALL_LIBRARY)
     install(
         TARGETS ${PROJECT_NAME}
@@ -89,8 +81,14 @@ if(${PROJECT_NAME}_INSTALL_LIBRARY)
     )
 
     # Install header files
-    install(FILES ${${PROJECT_NAME}_HEADER}
-            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
+    # install(DIRECTORY), not install(FILES): FILES flattens everything into
+    # one directory, so include/numsim-core/property_graph/*.h landed beside
+    # the top-level headers and #include <numsim-core/property_graph/...>
+    # could not resolve. It also only installed the files listed in
+    # a hand-maintained list -- 13 of the 23 headers in the tree.
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+            FILES_MATCHING PATTERN "*.h")
 
     # Create and install package config files
     include(CMakePackageConfigHelpers)
