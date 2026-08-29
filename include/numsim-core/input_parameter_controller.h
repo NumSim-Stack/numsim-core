@@ -1163,13 +1163,23 @@ public:
         std::println("    using default: '{}'", key);
     }
 
-    // 4. Report all missing required parameters at once
+    // 4. Report all missing required parameters at once. The names are
+    //    included in the exception's what() so GUI consumers (which
+    //    only get the exception text — they don't capture stderr) can
+    //    show the user exactly which fields are missing rather than
+    //    just a count.
     if (!missing.empty()) {
       std::println("  missing required parameters:");
       for (const auto& key : missing)
         std::println("    - {}", key);
-      throw std::invalid_argument(
-          "missing " + std::to_string(missing.size()) + " required parameter(s)");
+      std::string msg =
+          "missing " + std::to_string(missing.size()) + " required parameter(s):";
+      for (const auto& key : missing) {
+        msg += " '";
+        msg += key;
+        msg += "'";
+      }
+      throw std::invalid_argument(msg);
     }
   }
 
