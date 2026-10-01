@@ -6,7 +6,6 @@
 #include <string>
 
 namespace {
-// Captures what numsim_core::print writes to a stream.
 std::string capture(auto&& writer) {
   std::FILE* f = std::tmpfile();
   writer(f);
@@ -44,8 +43,6 @@ TEST(print, writes_to_ostreams) {
   EXPECT_EQ(os.str(), "1+2\n\n");
 }
 
-// <print> included as well: std::println must not make our calls ambiguous
-// (std::format_string pulls namespace std in for ADL).
 #if __has_include(<print>) && defined(__cpp_lib_print)
 #include <print>
 TEST(print, coexists_with_std_print) {

@@ -3,16 +3,6 @@
 
 #include "namespace.h"
 
-// std::print / std::println on top of <format>. The <print> header needs
-// libstdc++ 14; <format> is already in libstdc++ 13, so this keeps the
-// NumSim libraries building with GCC 13 and Clang 18 (the baseline shared
-// across the stack). Semantics follow std::print: the format string is
-// checked at compile time; output goes to stdout, a FILE* or a std::ostream.
-//
-// Calls inside this header are qualified: std::format_string is a std type,
-// so an unqualified call would also find std::print via ADL when <print> is
-// included elsewhere, and the two would be ambiguous.
-
 #include <cstdio>
 #include <format>
 #include <ostream>

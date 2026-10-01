@@ -13,8 +13,6 @@ jobs:
       fail-fast: false
       matrix:
         compiler:
-          # The NumSim stack's baseline is C++23 with std::expected: GCC >= 13
-          # (libstdc++-13 has <format> but no <print>, see print.h) or Clang >= 19.
           - { name: gcc-13,   cc: gcc-13,   cxx: g++-13 }
           # gcc-14 ships its own libstdc++-14 with the C++23 standard-library
           # features the project requires. Available in ubuntu-24.04 directly.
@@ -40,7 +38,6 @@ jobs:
             sudo apt-get update
           fi
           sudo apt-get install -y ${{ matrix.compiler.cxx }}
-          # libstdc++-14 alongside clang-19 so it picks the newer C++23 headers.
           if [[ "${{ matrix.compiler.cxx }}" == clang++-19 ]]; then
             sudo apt-get install -y libstdc++-14-dev
           fi

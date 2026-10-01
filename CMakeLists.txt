@@ -62,9 +62,6 @@ target_include_directories(${PROJECT_NAME}
 # downstream TUs (rvegen, Tessera, etc.).
 target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_23)
 
-# Build options (prefixed: generic names such as BUILD_TESTS leak between
-# projects when numsim-core is a subproject). The old names are still read
-# when the new ones are not set, with a deprecation warning.
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     set(NUMSIM_CORE_IS_TOP_LEVEL ON)
 else()
@@ -85,7 +82,6 @@ option(NUMSIM_CORE_BUILD_TESTS     "Build the numsim-core test suite" ${NUMSIM_C
 option(NUMSIM_CORE_BUILD_EXAMPLES  "Build the numsim-core examples"   ${NUMSIM_CORE_IS_TOP_LEVEL})
 option(NUMSIM_CORE_BUILD_BENCHMARK "Build the numsim-core benchmarks" OFF)
 
-# Shared NumSim CMake modules (dependencies, tests with sanitizers, warnings).
 include(cmake/numsim_bootstrap.cmake)
 include(NumSimDependency)
 include(NumSimWarnings)
