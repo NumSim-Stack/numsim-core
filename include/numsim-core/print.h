@@ -1,6 +1,8 @@
 #ifndef NUMSIM_CORE_PRINT_H
 #define NUMSIM_CORE_PRINT_H
 
+#include "namespace.h"
+
 // std::print / std::println on top of <format>. The <print> header needs
 // libstdc++ 14; <format> is already in libstdc++ 13, so this keeps the
 // NumSim libraries building with GCC 13 and Clang 18 (the baseline shared
@@ -17,7 +19,7 @@
 #include <string>
 #include <utility>
 
-namespace numsim_core {
+namespace numsim::core {
 
 namespace detail {
 inline void write(std::FILE* stream, std::string const& text) {
@@ -63,6 +65,6 @@ void println(std::format_string<Args...> fmt, Args&&... args) {
 inline void println(std::FILE* stream = stdout) { std::fputc('\n', stream); }
 inline void println(std::ostream& stream) { stream << '\n'; }
 
-}  // namespace numsim_core
+} // namespace numsim::core
 
 #endif  // NUMSIM_CORE_PRINT_H

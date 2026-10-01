@@ -1,6 +1,8 @@
 #ifndef UVWBASE_UTILITY_H
 #define UVWBASE_UTILITY_H
 
+#include "namespace.h"
+
 #include <utility>
 #include <any>
 #include <functional>
@@ -10,7 +12,7 @@
 #include <utility>
 #include <iomanip>
 
-namespace numsim_core {
+namespace numsim::core {
 
 template <class T, typename... Args, class F>
 inline std::pair<const std::type_index,

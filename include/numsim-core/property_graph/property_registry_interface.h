@@ -1,13 +1,15 @@
 #ifndef NUMSIM_CORE_PG_PROPERTY_REGISTRY_INTERFACE_H
 #define NUMSIM_CORE_PG_PROPERTY_REGISTRY_INTERFACE_H
 
+#include "../namespace.h"
+
 #include <optional>
 #include <set>
 #include <string>
 #include <numsim-core/property_graph/property.h>
 #include <numsim-core/property_graph/history_property.h>
 
-namespace numsim_core {
+namespace numsim::core {
 
 /// Wraps a shared property registry and tracks which properties
 /// this material has produced. One instance per material.
@@ -70,6 +72,6 @@ private:
   std::set<property_base<property_traits>*> m_produced_properties;
 };
 
-} // namespace numsim_core
+} // namespace numsim::core
 
 #endif // NUMSIM_CORE_PG_PROPERTY_REGISTRY_INTERFACE_H

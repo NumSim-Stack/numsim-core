@@ -1,6 +1,8 @@
 #ifndef INPUT_PARAMETER_CONTROLLER_H
 #define INPUT_PARAMETER_CONTROLLER_H
 
+#include "namespace.h"
+
 #include <algorithm>
 #include <any>
 #include <concepts>
@@ -23,7 +25,7 @@
 
 #include "input_parameter_enum_utils.h"
 
-namespace numsim_core {
+namespace numsim::core {
 
 /**
  * @file input_parameter_controller.h
@@ -1187,5 +1189,5 @@ private:
       m_data; ///< Map of parameters managed by the controller.
 };
 
-} // namespace numsim_core
+} // namespace numsim::core
 #endif // INPUT_PARAMETER_CONTROLLER_H

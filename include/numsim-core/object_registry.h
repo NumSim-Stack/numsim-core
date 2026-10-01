@@ -1,6 +1,8 @@
 #ifndef NUMSIM_CORE_OBJECT_REGISTRY_H
 #define NUMSIM_CORE_OBJECT_REGISTRY_H
 
+#include "namespace.h"
+
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -8,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace numsim_core {
+namespace numsim::core {
 
 /// Abstract registry entry — a node that knows how to create an object
 /// and optionally provide its parameter schema. Subclassed per concrete type.
@@ -143,6 +145,6 @@ private:
   std::unordered_map<std::string, std::shared_ptr<entry_base>> m_entries;
 };
 
-} // namespace numsim_core
+} // namespace numsim::core
 
 #endif // NUMSIM_CORE_OBJECT_REGISTRY_H

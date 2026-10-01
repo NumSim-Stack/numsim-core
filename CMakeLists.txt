@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15...3.24)
+cmake_minimum_required(VERSION 3.25)
 
 project(numsim-core LANGUAGES CXX)
 
@@ -62,16 +62,36 @@ target_include_directories(${PROJECT_NAME}
 # downstream TUs (rvegen, Tessera, etc.).
 target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_23)
 
-# Build options
-option(${PROJECT_NAME}_INSTALL_LIBRARY "Enable installing of ${PROJECT_NAME} library" ON)
-option(BUILD_EXAMPLES "Build ${PROJECT_NAME} examples" ON)
-option(BUILD_TESTS "Build ${PROJECT_NAME} test suite" ON)
-option(BUILD_BENCHMARK "Build ${PROJECT_NAME} benchmarks" OFF)
-option(DOWNLOAD_GTEST "Download and build GTest" OFF)
-option(DOWNLOAD_GBENCHMARK "Download and build Google Benchmark" OFF)
+# Build options (prefixed: generic names such as BUILD_TESTS leak between
+# projects when numsim-core is a subproject). The old names are still read
+# when the new ones are not set, with a deprecation warning.
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(NUMSIM_CORE_IS_TOP_LEVEL ON)
+else()
+    set(NUMSIM_CORE_IS_TOP_LEVEL OFF)
+endif()
+function(_numsim_core_legacy_option old new)
+    if(DEFINED ${old} AND NOT DEFINED ${new})
+        message(DEPRECATION "numsim-core: ${old} is deprecated, use ${new}")
+        set(${new} "${${old}}" CACHE BOOL "" FORCE)
+    endif()
+endfunction()
+_numsim_core_legacy_option(BUILD_TESTS NUMSIM_CORE_BUILD_TESTS)
+_numsim_core_legacy_option(BUILD_EXAMPLES NUMSIM_CORE_BUILD_EXAMPLES)
+_numsim_core_legacy_option(BUILD_BENCHMARK NUMSIM_CORE_BUILD_BENCHMARK)
+_numsim_core_legacy_option(numsim-core_INSTALL_LIBRARY NUMSIM_CORE_INSTALL)
+option(NUMSIM_CORE_INSTALL         "Install the numsim-core library"  ON)
+option(NUMSIM_CORE_BUILD_TESTS     "Build the numsim-core test suite" ${NUMSIM_CORE_IS_TOP_LEVEL})
+option(NUMSIM_CORE_BUILD_EXAMPLES  "Build the numsim-core examples"   ${NUMSIM_CORE_IS_TOP_LEVEL})
+option(NUMSIM_CORE_BUILD_BENCHMARK "Build the numsim-core benchmarks" OFF)
+
+# Shared NumSim CMake modules (dependencies, tests with sanitizers, warnings).
+include(cmake/numsim_bootstrap.cmake)
+include(NumSimDependency)
+include(NumSimWarnings)
 
 # Installation logic
-if(${PROJECT_NAME}_INSTALL_LIBRARY)
+if(NUMSIM_CORE_INSTALL)
     install(
         TARGETS ${PROJECT_NAME}
         EXPORT ${PROJECT_NAME}_Targets
@@ -119,31 +139,20 @@ if(${PROJECT_NAME}_INSTALL_LIBRARY)
 endif()
 
 # Optional subdirectories
-if(BUILD_TESTS)
+if(NUMSIM_CORE_BUILD_TESTS)
     enable_testing()
-    include(CTest)
-    FetchContent_Declare(
-      googletest
-      URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-    )
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(googletest)
-    include(GoogleTest)
-    # Uncomment when tests exist
+    include(NumSimGoogleTest)
+    numsim_googletest()
+    include(NumSimTesting)
     add_subdirectory(tests)
 endif()
 
-if(BUILD_BENCHMARK)
-    if(DOWNLOAD_GBENCHMARK)
-        # Add logic to download and build Google Benchmark here
-    endif()
+if(NUMSIM_CORE_BUILD_BENCHMARK)
     # Uncomment when benchmarks exist
     # add_subdirectory(benchmark)
 endif()
 
-if(BUILD_EXAMPLES)
-    # Uncomment when examples exist
+if(NUMSIM_CORE_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 

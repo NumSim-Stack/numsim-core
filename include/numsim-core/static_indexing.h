@@ -1,10 +1,12 @@
 #ifndef STATIC_INDEXING_H
 #define STATIC_INDEXING_H
 
+#include "namespace.h"
+
 
 #include <utility>
 
-namespace numsim_core {
+namespace numsim::core {
 
 using type_id = unsigned int;
 
