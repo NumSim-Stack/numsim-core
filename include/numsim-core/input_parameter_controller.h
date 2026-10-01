@@ -10,7 +10,6 @@
 #include <functional>
 #include <list>
 #include <memory>
-#include <print>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -19,6 +18,8 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include "print.h"
 
 #include "input_parameter_enum_utils.h"
 
@@ -1160,14 +1161,14 @@ public:
     // 3. Log defaults that were applied
     for (const auto& [key, param_ptr] : m_data) {
       if (!provided.contains(key) && params.contains(key))
-        std::println("    using default: '{}'", key);
+        numsim_core::println("    using default: '{}'", key);
     }
 
     // 4. Report all missing required parameters at once
     if (!missing.empty()) {
-      std::println("  missing required parameters:");
+      numsim_core::println("  missing required parameters:");
       for (const auto& key : missing)
-        std::println("    - {}", key);
+        numsim_core::println("    - {}", key);
       throw std::invalid_argument(
           "missing " + std::to_string(missing.size()) + " required parameter(s)");
     }

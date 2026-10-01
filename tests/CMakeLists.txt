@@ -1,9 +1,5 @@
 macro(add_numsim_core_test TARGET_NAME)
-    add_executable(${TARGET_NAME} ${ARGN})
-    target_link_libraries(${TARGET_NAME} PRIVATE numsim-core::numsim-core GTest::gtest_main)
-    #maybe_target_pedantic_warnings(${TARGET_NAME})
-    gtest_discover_tests(${TARGET_NAME})  # Automatically discover tests for the executable
-    add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+    numsim_add_test(${TARGET_NAME} SOURCES ${ARGN} LINK numsim-core::numsim-core)
 endmacro()
 
 # Iterate over all example subdirectories
