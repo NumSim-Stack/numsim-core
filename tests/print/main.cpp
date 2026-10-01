@@ -33,3 +33,23 @@ TEST(print, println_appends_a_newline) {
 TEST(print, no_arguments_and_braces) {
   EXPECT_EQ(capture([](std::FILE* f) { numsim_core::println(f, "{{}}"); }), "{}\n");
 }
+
+#include <sstream>
+
+TEST(print, writes_to_ostreams) {
+  std::ostringstream os;
+  numsim_core::print(os, "{}", 1);
+  numsim_core::println(os, "+{}", 2);
+  numsim_core::println(os);
+  EXPECT_EQ(os.str(), "1+2\n\n");
+}
+
+// <print> included as well: std::println must not make our calls ambiguous
+// (std::format_string pulls namespace std in for ADL).
+#if __has_include(<print>) && defined(__cpp_lib_print)
+#include <print>
+TEST(print, coexists_with_std_print) {
+  EXPECT_EQ(capture([](std::FILE* f) { numsim_core::println(f, "{}", 1); }), "1\n");
+  numsim_core::println("{}", "both visible");
+}
+#endif
