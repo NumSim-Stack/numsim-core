@@ -1,12 +1,14 @@
 #ifndef NUMSIM_CORE_PG_INPUT_TYPES_H
 #define NUMSIM_CORE_PG_INPUT_TYPES_H
 
+#include "../namespace.h"
+
 #include <stdexcept>
 #include <string>
 #include <numsim-core/property_graph/property.h>
 #include <numsim-core/property_graph/history_property.h>
 
-namespace numsim_core {
+namespace numsim::core {
 
 /// Type-erased base for input wiring at finalize() time.
 class input_wire_base {
@@ -139,6 +141,6 @@ private:
   const property_base<property_traits>* m_source_prop{nullptr};
 };
 
-} // namespace numsim_core
+} // namespace numsim::core
 
 #endif // NUMSIM_CORE_PG_INPUT_TYPES_H

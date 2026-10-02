@@ -1,7 +1,7 @@
 macro(add_numsim_core_example TARGET_NAME)
     add_executable(${TARGET_NAME} ${ARGN})
     target_link_libraries(${TARGET_NAME} PRIVATE numsim-core::numsim-core)
-    #maybe_target_pedantic_warnings(${TARGET_NAME})
+    numsim_target_warnings(${TARGET_NAME})
 endmacro()
 
 # Iterate over all example subdirectories

@@ -1,12 +1,14 @@
 #ifndef FACTORY_BASE_BONES_H
 #define FACTORY_BASE_BONES_H
 
+#include "namespace.h"
+
 #include <string>
 #include <memory>
 #include <vector>
 #include <map>
 
-namespace numsim_core {
+namespace numsim::core {
 
 template <typename Type>
 class factory_base

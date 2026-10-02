@@ -1,11 +1,13 @@
 #ifndef NUMSIM_CORE_PG_PROPERTY_TRAITS_H
 #define NUMSIM_CORE_PG_PROPERTY_TRAITS_H
 
+#include "../namespace.h"
+
 #include <functional>
 #include <string>
 #include <vector>
 
-namespace numsim_core {
+namespace numsim::core {
 
 enum class EdgeKind : uint8_t {
   Global,
@@ -28,6 +30,6 @@ struct property_traits {
   std::vector<dependency> input_dependencies;
 };
 
-} // namespace numsim_core
+} // namespace numsim::core
 
 #endif // NUMSIM_CORE_PG_PROPERTY_TRAITS_H

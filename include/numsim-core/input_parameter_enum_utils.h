@@ -1,11 +1,13 @@
 #ifndef INPUT_PARAMETER_ENUM_UTILS_H
 #define INPUT_PARAMETER_ENUM_UTILS_H
 
+#include "namespace.h"
+
 #include <unordered_map>
 #include <string>
 #include <stdexcept>
 
-namespace numsim_core {
+namespace numsim::core {
 template<typename Enum>
 struct enum_traits;
 }

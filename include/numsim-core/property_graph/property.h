@@ -1,13 +1,15 @@
 #ifndef NUMSIM_CORE_PG_PROPERTY_H
 #define NUMSIM_CORE_PG_PROPERTY_H
 
+#include "../namespace.h"
+
 #include <cstring>
 #include <memory>
 #include <ostream>
 #include <istream>
 #include <numsim-core/property_graph/property_traits.h>
 
-namespace numsim_core {
+namespace numsim::core {
 
 template<typename Traits>
 class property_base;
@@ -69,6 +71,6 @@ using property_base_ptr_default = property_base_ptr<property_traits>;
 template<typename T>
 using property_default = property<T, property_traits>;
 
-} // namespace numsim_core
+} // namespace numsim::core
 
 #endif // NUMSIM_CORE_PG_PROPERTY_H

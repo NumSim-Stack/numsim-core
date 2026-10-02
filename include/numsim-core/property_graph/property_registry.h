@@ -1,11 +1,13 @@
 #ifndef NUMSIM_CORE_PG_PROPERTY_REGISTRY_H
 #define NUMSIM_CORE_PG_PROPERTY_REGISTRY_H
 
+#include "../namespace.h"
+
 #include <string>
 #include <unordered_map>
 #include <numsim-core/property_graph/property.h>
 
-namespace numsim_core {
+namespace numsim::core {
 
 class property_registry {
 public:
@@ -16,6 +18,6 @@ private:
   std::unordered_map<std::string, std::unordered_map<std::string, property_base_ptr<property_traits>>> m_data;
 };
 
-} // namespace numsim_core
+} // namespace numsim::core
 
 #endif // NUMSIM_CORE_PG_PROPERTY_REGISTRY_H

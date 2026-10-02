@@ -1,6 +1,8 @@
 #ifndef INPUT_PARAMETER_CONTROLLER_H
 #define INPUT_PARAMETER_CONTROLLER_H
 
+#include "namespace.h"
+
 #include <algorithm>
 #include <any>
 #include <concepts>
@@ -10,7 +12,6 @@
 #include <functional>
 #include <list>
 #include <memory>
-#include <print>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -20,9 +21,11 @@
 #include <utility>
 #include <vector>
 
+#include "print.h"
+
 #include "input_parameter_enum_utils.h"
 
-namespace numsim_core {
+namespace numsim::core {
 
 /**
  * @file input_parameter_controller.h
@@ -1160,14 +1163,14 @@ public:
     // 3. Log defaults that were applied
     for (const auto& [key, param_ptr] : m_data) {
       if (!provided.contains(key) && params.contains(key))
-        std::println("    using default: '{}'", key);
+        numsim::core::println("    using default: '{}'", key);
     }
 
     // 4. Report all missing required parameters at once
     if (!missing.empty()) {
-      std::println("  missing required parameters:");
+      numsim::core::println("  missing required parameters:");
       for (const auto& key : missing)
-        std::println("    - {}", key);
+        numsim::core::println("    - {}", key);
       throw std::invalid_argument(
           "missing " + std::to_string(missing.size()) + " required parameter(s)");
     }
@@ -1186,5 +1189,5 @@ private:
       m_data; ///< Map of parameters managed by the controller.
 };
 
-} // namespace numsim_core
+} // namespace numsim::core
 #endif // INPUT_PARAMETER_CONTROLLER_H

@@ -15,11 +15,6 @@ using numsim_core::query_map;
 using key_list = std::tuple<int, std::string>;
 using map_type = std::unordered_map<int, std::unordered_map<std::string, std::any>>;
 
-// Create a simple value generation function
-auto value_gen = [](int &data) -> std::any {
-  return std::make_any<int>(data);
-};
-
 // Test suite for the query_map class
 class QueryMapTest : public ::testing::Test {
 protected:

@@ -1,6 +1,8 @@
 #ifndef NUMSIM_CORE_PG_HISTORY_PROPERTY_H
 #define NUMSIM_CORE_PG_HISTORY_PROPERTY_H
 
+#include "../namespace.h"
+
 #include <istream>
 #include <ostream>
 #include <stdexcept>
@@ -8,7 +10,7 @@
 #include <utility>
 #include <numsim-core/property_graph/property.h>
 
-namespace numsim_core {
+namespace numsim::core {
 
 template<typename T, typename Traits>
 class history_property;
@@ -157,6 +159,6 @@ private:
   T m_new;
 };
 
-} // namespace numsim_core
+} // namespace numsim::core
 
 #endif // NUMSIM_CORE_PG_HISTORY_PROPERTY_H
