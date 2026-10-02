@@ -1,13 +1,15 @@
 #ifndef NUMSIM_CORE_PRINT_H
 #define NUMSIM_CORE_PRINT_H
 
+#include "namespace.h"
+
 #include <cstdio>
 #include <format>
 #include <ostream>
 #include <string>
 #include <utility>
 
-namespace numsim_core {
+namespace numsim::core {
 
 namespace detail {
 inline void write(std::FILE* stream, std::string const& text) {
@@ -28,7 +30,7 @@ void print(std::ostream& stream, std::format_string<Args...> fmt, Args&&... args
 
 template <typename... Args>
 void print(std::format_string<Args...> fmt, Args&&... args) {
-  numsim_core::print(stdout, fmt, std::forward<Args>(args)...);
+  numsim::core::print(stdout, fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
@@ -47,12 +49,12 @@ void println(std::ostream& stream, std::format_string<Args...> fmt, Args&&... ar
 
 template <typename... Args>
 void println(std::format_string<Args...> fmt, Args&&... args) {
-  numsim_core::println(stdout, fmt, std::forward<Args>(args)...);
+  numsim::core::println(stdout, fmt, std::forward<Args>(args)...);
 }
 
 inline void println(std::FILE* stream = stdout) { std::fputc('\n', stream); }
 inline void println(std::ostream& stream) { stream << '\n'; }
 
-}  // namespace numsim_core
+}  // namespace numsim::core
 
 #endif  // NUMSIM_CORE_PRINT_H

@@ -14,4 +14,5 @@ cmake -S . -B build && cmake --build build && ctest --test-dir build
 | `NUMSIM_CORE_INSTALL` | ON |
 
 CMake helpers come from [numsim-cmake](https://github.com/NumSim-Stack/numsim-cmake).
+The library lives in `namespace numsim::core`; `numsim_core` remains as an alias.
 Toolchain: C++23 with `std::expected`, i.e. GCC ≥ 13 or Clang ≥ 19.

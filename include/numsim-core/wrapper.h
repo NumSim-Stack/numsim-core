@@ -1,10 +1,12 @@
 #ifndef WRAPPER_H
 #define WRAPPER_H
 
+#include "namespace.h"
+
 #include <any>
 #include <type_traits>
 
-namespace numsim_core {
+namespace numsim::core {
 
 /**
  * @brief A lightweight wrapper class template for managing a pointer to an
@@ -133,5 +135,5 @@ private:
 
 template <typename T> using cwrapper = wrapper<const T>;
 
-} // namespace numsim_core
+} // namespace numsim::core
 #endif // WRAPPER_H
