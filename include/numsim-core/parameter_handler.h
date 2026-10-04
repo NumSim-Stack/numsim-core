@@ -1,6 +1,8 @@
 #ifndef PARAMETER_HANDLER_H
 #define PARAMETER_HANDLER_H
 
+#include "namespace.h"
+
 #include "any_printer.h"
 #include <any>
 #include <stdexcept>
@@ -9,7 +11,7 @@
 
 
 
-namespace numsim_core {
+namespace numsim::core {
 
 template<typename T>
 struct parameter_handler_cast;
@@ -276,5 +278,5 @@ private:
       m_data; ///< Internal storage for key-value pairs.
 };
 
-} // namespace numsim_core
+} // namespace numsim::core
 #endif // PARAMETER_HANDLER_H

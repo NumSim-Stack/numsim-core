@@ -1,6 +1,8 @@
 #ifndef QUERY_MAP_H
 #define QUERY_MAP_H
 
+#include "namespace.h"
+
 #include <type_traits>
 #include <any>
 #include <functional>
@@ -10,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-namespace numsim_core {
+namespace numsim::core {
 
 /**
  * @brief A template class that maps a list of keys to values, allowing for
@@ -306,6 +308,6 @@ private:
 using double_query_map =
     query_map<std::tuple<std::string, std::string>, std::unordered_map>;
 
-} // namespace numsim_core
+} // namespace numsim::core
 
 #endif // QUERY_MAP_H

@@ -1,11 +1,13 @@
 #ifndef WAREHOUSE_BONES_H
 #define WAREHOUSE_BONES_H
 
+#include "namespace.h"
+
 #include <unordered_map>
 #include <string>
 #include <memory>
 
-namespace numsim_core {
+namespace numsim::core {
 namespace warehouse_detail {
 
 template<typename Key, typename Type>

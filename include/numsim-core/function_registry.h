@@ -1,13 +1,15 @@
 #ifndef FUNCTION_REGISTRY_H
 #define FUNCTION_REGISTRY_H
 
+#include "namespace.h"
+
 #include <tuple>
 #include <unordered_map>
 #include <string>
 #include <functional>
 #include <exception>
 
-namespace numsim_core {
+namespace numsim::core {
 
 template<typename... Signatures>
 class function_registry {

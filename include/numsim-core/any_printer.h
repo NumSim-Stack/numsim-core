@@ -1,10 +1,12 @@
 #ifndef ANY_PRINTER_H
 #define ANY_PRINTER_H
 
+#include "namespace.h"
+
 #include "numsim_core_utility.h"
 
 
-namespace numsim_core {
+namespace numsim::core {
 /**
  * @brief A utility class that provides type-safe printing of `std::any` types.
  *
@@ -229,7 +231,7 @@ inline const std::unordered_map<
                                            os << x.get(); })};
 
 
-} // namespace numsim_core
+} // namespace numsim::core
 
 inline numsim_core::any_print_wrapper print(std::any const &data) {
   return numsim_core::any_print_wrapper(data);

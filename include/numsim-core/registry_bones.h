@@ -1,6 +1,8 @@
 #ifndef REGISTRY_BONES_H
 #define REGISTRY_BONES_H
 
+#include "namespace.h"
+
 #include <memory>
 #include <string>
 #include <map>
@@ -8,7 +10,7 @@
 #include <memory>
 
 
-namespace numsim_core {
+namespace numsim::core {
 
 #define combineNamesImpl(X, Y) X##Y
 #define combineNames(X, Y) combineNamesImpl(X, Y)

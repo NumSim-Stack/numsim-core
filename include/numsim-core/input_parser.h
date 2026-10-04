@@ -1,12 +1,14 @@
 #ifndef INPUT_PARSER_H
 #define INPUT_PARSER_H
 
+#include "namespace.h"
+
 #include <iostream>
 #include <string>
 #include <map>
 #include <algorithm>
 
-namespace numsim_core {
+namespace numsim::core {
 
 static inline auto remove_character(std::string && input, char const& key){
     input.erase(std::remove(input.begin(), input.end(), key), input.end());
