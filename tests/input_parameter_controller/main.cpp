@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <sstream>
+#include <numsim-core/input_parameter_controller.h>
 #include <numsim-core/parameter_handler.h>
 
 using numsim_core::parameter_handler;
@@ -72,4 +73,32 @@ TEST_F(ParameterHandlerTest, PrintContents) {
   handler.print(oss);
   EXPECT_NE(oss.str().find("key7"), std::string::npos);
   EXPECT_NE(oss.str().find("print_test"), std::string::npos);
+}
+
+// accept(): the exception names every missing required parameter, not only
+// the count -- callers that only see what() (GUIs, logs) need the names.
+namespace {
+class empty_source final : public numsim_core::parameter_visitor_base<std::string> {
+public:
+  bool contains(const std::string &) const override { return false; }
+  std::any read(const std::string &, std::type_index) const override { return {}; }
+};
+} // namespace
+
+TEST(InputParameterControllerAccept, MissingRequiredParametersAreNamedInTheException) {
+  numsim_core::input_parameter_controller<std::string, parameter_handler<>> schema;
+  schema.insert<double>("young").add<numsim_core::is_required>();
+  schema.insert<double>("poisson").add<numsim_core::is_required>();
+  schema.insert<int>("steps").add<numsim_core::set_default>(10);
+  parameter_handler<> params;
+  try {
+    schema.accept(empty_source{}, params);
+    FAIL() << "accept() did not throw";
+  } catch (const std::invalid_argument &e) {
+    const std::string what{e.what()};
+    EXPECT_NE(what.find("missing 2 required parameter(s)"), std::string::npos) << what;
+    EXPECT_NE(what.find("'young'"), std::string::npos) << what;
+    EXPECT_NE(what.find("'poisson'"), std::string::npos) << what;
+    EXPECT_EQ(what.find("steps"), std::string::npos) << what;
+  }
 }
