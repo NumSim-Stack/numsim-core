@@ -298,57 +298,63 @@ struct json_conversion_options {
 /// parameter of the schema is read (reader registry), defaults applied and
 /// checks run. Every input error is a json_conversion_error carrying the
 /// path of the parameter, or of the object for schema checks.
-template <typename JsonType, typename KeyType, typename ParameterHandler>
-void json_to_parameters(const JsonType &json,
-                        const input_parameter_controller<KeyType, ParameterHandler> &schema,
-                        ParameterHandler &params, const json_reader_registry<JsonType> &registry,
-                        const json_conversion_options &options = {}) {
-  using adapter = json_adapter<JsonType>;
-  json_parameter_visitor<JsonType, KeyType> visitor(json, registry, options.path);
+///
+/// A function object, not a function: argument-dependent lookup never
+/// finds it, so libraries with their own json_to_parameters taking
+/// numsim-core types keep calling theirs unqualified.
+struct json_to_parameters_fn {
+  template <typename JsonType, typename KeyType, typename ParameterHandler>
+  void operator()(const JsonType &json, const input_parameter_controller<KeyType, ParameterHandler> &schema,
+                  ParameterHandler &params, const json_reader_registry<JsonType> &registry,
+                  const json_conversion_options &options = {}) const {
+    using adapter = json_adapter<JsonType>;
+    json_parameter_visitor<JsonType, KeyType> visitor(json, registry, options.path);
 
-  if (!adapter::is_object(json))
-    throw json_conversion_error(options.path, "expected a JSON object, got " + adapter::type_name(json));
+    if (!adapter::is_object(json))
+      throw json_conversion_error(options.path, "expected a JSON object, got " + adapter::type_name(json));
 
-  if (options.unknown_keys != unknown_key_policy::ignore) {
-    std::unordered_set<std::string> known(options.reserved_keys.begin(), options.reserved_keys.end());
-    for (const auto &[key, _] : schema)
-      known.insert(std::string{key});
-    std::vector<std::string> unknown;
-    adapter::for_each_key(json, [&](const std::string &key) {
-      if (!known.contains(key))
-        unknown.push_back(key);
-    });
-    for (const auto &key : unknown) {
-      auto const where{visitor.qualified(key)};
-      if (options.unknown_keys == unknown_key_policy::error)
-        throw json_conversion_error(where, "unknown parameter");
-      if (options.on_warning)
-        options.on_warning(where, "unknown parameter (not in the schema)");
-      else
-        println(stderr, "  warning: {}: unknown parameter (not in the schema)", where);
+    if (options.unknown_keys != unknown_key_policy::ignore) {
+      std::unordered_set<std::string> known(options.reserved_keys.begin(), options.reserved_keys.end());
+      for (const auto &[key, _] : schema)
+        known.insert(std::string{key});
+      std::vector<std::string> unknown;
+      adapter::for_each_key(json, [&](const std::string &key) {
+        if (!known.contains(key))
+          unknown.push_back(key);
+      });
+      for (const auto &key : unknown) {
+        auto const where{visitor.qualified(key)};
+        if (options.unknown_keys == unknown_key_policy::error)
+          throw json_conversion_error(where, "unknown parameter");
+        if (options.on_warning)
+          options.on_warning(where, "unknown parameter (not in the schema)");
+        else
+          println(stderr, "  warning: {}: unknown parameter (not in the schema)", where);
+      }
+    }
+
+    try {
+      schema.accept(visitor, params);
+    } catch (const json_conversion_error &) {
+      throw;
+    } catch (const std::invalid_argument &e) {
+      // schema checks (missing, range) know the parameter, not the document
+      throw json_conversion_error(options.path, e.what());
+    } catch (const std::runtime_error &e) {
+      throw json_conversion_error(options.path, e.what());
     }
   }
 
-  try {
-    schema.accept(visitor, params);
-  } catch (const json_conversion_error &) {
-    throw;
-  } catch (const std::invalid_argument &e) {
-    // schema checks (missing, range) know the parameter, not the document
-    throw json_conversion_error(options.path, e.what());
-  } catch (const std::runtime_error &e) {
-    throw json_conversion_error(options.path, e.what());
+  /// With the default reader registry.
+  template <typename JsonType, typename KeyType, typename ParameterHandler>
+  void operator()(const JsonType &json, const input_parameter_controller<KeyType, ParameterHandler> &schema,
+                  ParameterHandler &params, const json_conversion_options &options = {}) const {
+    static const auto registry{make_default_json_registry<JsonType>()};
+    (*this)(json, schema, params, registry, options);
   }
-}
+};
 
-/// json_to_parameters with the default reader registry.
-template <typename JsonType, typename KeyType, typename ParameterHandler>
-void json_to_parameters(const JsonType &json,
-                        const input_parameter_controller<KeyType, ParameterHandler> &schema,
-                        ParameterHandler &params, const json_conversion_options &options = {}) {
-  static const auto registry{make_default_json_registry<JsonType>()};
-  json_to_parameters(json, schema, params, registry, options);
-}
+inline constexpr json_to_parameters_fn json_to_parameters{};
 
 } // namespace numsim::core
 

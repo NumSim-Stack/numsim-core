@@ -1,5 +1,5 @@
 # The version number of this project.
-set( project_version 1.1.0 )
+set( project_version 1.1.1 )
 
 # The description of this project.
 set( project_description "Description of root-project" )
