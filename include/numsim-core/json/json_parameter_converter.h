@@ -9,6 +9,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <format>
 #include <functional>
 #include <limits>
@@ -292,6 +293,9 @@ struct json_conversion_options {
   std::vector<std::string> reserved_keys{"type", "name"};
   /// Receives warnings as (path, message); empty: printed to stderr.
   std::function<void(const std::string &, const std::string &)> on_warning{};
+  /// Where the schema lists applied defaults and missing parameters
+  /// (input_parameter_controller::accept); nullptr: nowhere.
+  std::FILE *log{stdout};
 };
 
 /// Convert a JSON object into a validated parameter_handler: every
@@ -334,7 +338,7 @@ struct json_to_parameters_fn {
     }
 
     try {
-      schema.accept(visitor, params);
+      schema.accept(visitor, params, options.log);
     } catch (const json_conversion_error &) {
       throw;
     } catch (const std::invalid_argument &e) {
