@@ -269,3 +269,25 @@ TEST(json_reader_registry, readers_get_the_key_and_keyed_readers_take_precedence
       [&] { nc::json_to_parameters(json::parse(R"({"zero_block": [1]})"), s, bad, registry, {.path = "m"}); })};
   EXPECT_NE(msg.find("m.zero_block: zero_block must be"), std::string::npos) << msg;
 }
+
+// --- Another library's own json_to_parameters stays callable unqualified ---
+// numsim-materials declares json_to_parameters(json, schema, params) in its
+// namespace and calls it unqualified with numsim-core argument types. If
+// the core version were a function, argument-dependent lookup would find it
+// too and the call would be ambiguous.
+
+namespace other_library {
+template <typename JsonType, typename Schema, typename Handler>
+int json_to_parameters(JsonType const &, Schema const &, Handler &) {
+  return 42;
+}
+template <typename JsonType, typename Schema, typename Handler>
+int call_unqualified(JsonType const &j, Schema const &s, Handler &h) {
+  return json_to_parameters(j, s, h);
+}
+} // namespace other_library
+
+TEST(json_to_parameters, is_not_found_by_argument_dependent_lookup) {
+  handler params;
+  EXPECT_EQ(other_library::call_unqualified(json::object(), solver_schema(), params), 42);
+}
