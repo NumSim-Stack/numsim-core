@@ -39,6 +39,14 @@ message(STATUS "Building v${${PROJECT_NAME}_VERSION}")
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
+# JSON -> parameter conversion (numsim-core/json/*.h). Header-only and
+# generic over the JSON library: no JSON dependency here, the consumer links
+# its JSON library (e.g. nlohmann_json::nlohmann_json) itself.
+add_library(${PROJECT_NAME}-json INTERFACE)
+add_library(${PROJECT_NAME}::json ALIAS ${PROJECT_NAME}-json)
+target_link_libraries(${PROJECT_NAME}-json INTERFACE ${PROJECT_NAME})
+set_target_properties(${PROJECT_NAME}-json PROPERTIES EXPORT_NAME json)
+
 # GNUInstallDirs BEFORE the target_include_directories() below, not after it.
 # CMAKE_INSTALL_INCLUDEDIR is expanded when the line is read, so with the
 # include further down the INSTALL_INTERFACE expanded EMPTY and the exported
@@ -78,7 +86,7 @@ include(NumSimWarnings)
 # Installation logic
 if(NUMSIM_CORE_INSTALL)
     install(
-        TARGETS ${PROJECT_NAME}
+        TARGETS ${PROJECT_NAME} ${PROJECT_NAME}-json
         EXPORT ${PROJECT_NAME}_Targets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
