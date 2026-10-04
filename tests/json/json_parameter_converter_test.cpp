@@ -313,3 +313,17 @@ TEST(json_to_parameters, logs_defaults_to_stdout_by_default_and_not_with_a_null_
                nc::json_conversion_error);
   EXPECT_EQ(testing::internal::GetCapturedStdout(), "");
 }
+
+// --- The warning print is qualified: std::println (C++23 <print>) must not make it ambiguous ---
+// With libc++ the converter's internal println(stderr, fmt, std::string) also
+// found std::println by argument-dependent lookup.
+#if __has_include(<print>)
+#include <print>
+#endif
+TEST(json_to_parameters, warnings_compile_and_print_with_std_println_visible) {
+  handler params;
+  testing::internal::CaptureStderr();
+  nc::json_to_parameters(json::parse(R"({"name": "s", "cg_tolerance": 1, "tol": 2})"), solver_schema(), params,
+                         {.log = nullptr});
+  EXPECT_NE(testing::internal::GetCapturedStderr().find("tol"), std::string::npos);
+}
