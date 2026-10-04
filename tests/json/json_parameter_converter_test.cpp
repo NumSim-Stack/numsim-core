@@ -291,3 +291,25 @@ TEST(json_to_parameters, is_not_found_by_argument_dependent_lookup) {
   handler params;
   EXPECT_EQ(other_library::call_unqualified(json::object(), solver_schema(), params), 42);
 }
+
+// --- The log of applied defaults and missing parameters can be redirected or switched off ---
+
+TEST(json_to_parameters, logs_defaults_to_stdout_by_default_and_not_with_a_null_log) {
+  auto const doc = json::parse(R"({"name": "s", "cg_tolerance": 1e-8})");
+  handler loud;
+  testing::internal::CaptureStdout();
+  nc::json_to_parameters(doc, solver_schema(), loud);
+  EXPECT_NE(testing::internal::GetCapturedStdout().find("using default: 'max_iterations'"), std::string::npos);
+
+  handler quiet;
+  testing::internal::CaptureStdout();
+  nc::json_to_parameters(doc, solver_schema(), quiet, {.log = nullptr});
+  EXPECT_EQ(testing::internal::GetCapturedStdout(), "");
+  EXPECT_EQ(quiet.get<std::size_t>("max_iterations"), 100u);
+
+  handler missing;
+  testing::internal::CaptureStdout();
+  EXPECT_THROW(nc::json_to_parameters(json::object(), solver_schema(), missing, {.log = nullptr}),
+               nc::json_conversion_error);
+  EXPECT_EQ(testing::internal::GetCapturedStdout(), "");
+}

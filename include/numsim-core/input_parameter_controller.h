@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <any>
+#include <cstdio>
 #include <concepts>
 #include <cstddef>
 #include <exception>
@@ -1132,10 +1133,12 @@ public:
    *
    * @param visitor The data source visitor.
    * @param params The parameter handler to fill and validate.
+   * @param log Where applied defaults and missing parameters are listed;
+   *            nullptr: nowhere (the exception still names the missing ones).
    * @throws std::invalid_argument if any required parameters are missing or validation fails.
    */
   void accept(const parameter_visitor_base<KeyType>& visitor,
-              ParameterHandler& params) const {
+              ParameterHandler& params, std::FILE* log = stdout) const {
     // 1. Read values from visitor
     std::unordered_set<KeyType> provided;
     for (const auto& [key, param_ptr] : m_data) {
@@ -1162,8 +1165,8 @@ public:
 
     // 3. Log defaults that were applied
     for (const auto& [key, param_ptr] : m_data) {
-      if (!provided.contains(key) && params.contains(key))
-        numsim::core::println("    using default: '{}'", key);
+      if (log && !provided.contains(key) && params.contains(key))
+        numsim::core::println(log, "    using default: '{}'", key);
     }
 
     // 4. Report all missing required parameters at once. The names are
@@ -1172,9 +1175,11 @@ public:
     //    show the user exactly which fields are missing rather than
     //    just a count.
     if (!missing.empty()) {
-      numsim::core::println("  missing required parameters:");
-      for (const auto& key : missing)
-        numsim::core::println("    - {}", key);
+      if (log) {
+        numsim::core::println(log, "  missing required parameters:");
+        for (const auto& key : missing)
+          numsim::core::println(log, "    - {}", key);
+      }
       std::string msg =
           "missing " + std::to_string(missing.size()) + " required parameter(s):";
       for (const auto& key : missing) {
