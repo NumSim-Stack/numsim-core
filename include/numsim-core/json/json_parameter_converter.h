@@ -333,7 +333,7 @@ struct json_to_parameters_fn {
         if (options.on_warning)
           options.on_warning(where, "unknown parameter (not in the schema)");
         else
-          println(stderr, "  warning: {}: unknown parameter (not in the schema)", where);
+          numsim::core::println(stderr, "  warning: {}: unknown parameter (not in the schema)", where);
       }
     }
 
