@@ -25,7 +25,16 @@ struct static_indexing_inc
 
 template <typename Type, typename Derived = void>
 struct static_indexing_imp {
-  static inline type_id value{static_indexing_inc<Derived>::getID()};
+  // The id is drawn on first use, from a function-local static, so it is
+  // valid whenever it is read. Inline static data members of class
+  // template specialisations have unordered dynamic initialisation: an
+  // initialiser that copied `value` directly could run before `value`'s
+  // own and read 0 (clang does this), giving every type the same id.
+  [[nodiscard]] static type_id get() {
+    static const type_id id{static_indexing_inc<Derived>::getID()};
+    return id;
+  }
+  static inline type_id value{get()};
 };
 
 }
@@ -44,12 +53,16 @@ public:
 //  [[nodiscard]] type_id get_type_id() const noexcept final override {
 //    return m_id;
 //  }
-//  [[nodiscard]] static type_id get_static_type_id() noexcept {
-//    return m_id;
-//  }
+  /// Id of `Derived`; safe to call at any time, including from other
+  /// static initialisers.
+  [[nodiscard]] static type_id get_static_type_id() {
+    return detail::static_indexing_imp<Derived>::get();
+  }
 
 //private:
-  static inline auto m_id{detail::static_indexing_imp<Derived>::value};
+  // Initialised through get(), never by copying another inline static, so
+  // it holds the right id once its own initialiser has run.
+  static inline auto m_id{detail::static_indexing_imp<Derived>::get()};
 };
 
 
