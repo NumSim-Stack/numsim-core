@@ -1,0 +1,1 @@
+add_numsim_core_test(static_indexing_test main.cpp)
