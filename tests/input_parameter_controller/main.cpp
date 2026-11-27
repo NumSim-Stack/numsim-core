@@ -102,3 +102,48 @@ TEST(InputParameterControllerAccept, MissingRequiredParametersAreNamedInTheExcep
     EXPECT_EQ(what.find("steps"), std::string::npos) << what;
   }
 }
+
+namespace {
+class map_source final : public numsim_core::parameter_visitor_base<std::string> {
+public:
+  explicit map_source(std::string key, double value) : m_key{std::move(key)}, m_value{value} {}
+  bool contains(const std::string &key) const override { return key == m_key; }
+  std::any read(const std::string &, std::type_index) const override { return m_value; }
+
+private:
+  std::string m_key;
+  double m_value;
+};
+} // namespace
+
+TEST(InputParameterControllerHelpers, RequiredIsNamedWhenMissing) {
+  numsim_core::input_parameter_controller<std::string, parameter_handler<>> schema;
+  schema.required<double>("young");
+  parameter_handler<> params;
+  try {
+    schema.accept(empty_source{}, params, nullptr);
+    FAIL() << "accept() did not throw";
+  } catch (const std::invalid_argument &e) {
+    EXPECT_NE(std::string{e.what()}.find("'young'"), std::string::npos) << e.what();
+  }
+}
+
+TEST(InputParameterControllerHelpers, OptionalFillsItsDefault) {
+  numsim_core::input_parameter_controller<std::string, parameter_handler<>> schema;
+  schema.required<double>("young");
+  schema.optional<int>("steps", 10);
+  parameter_handler<> params;
+  schema.accept(map_source{"young", 210.0}, params, nullptr);
+  EXPECT_DOUBLE_EQ(params.get<double>("young"), 210.0);
+  EXPECT_EQ(params.get<int>("steps"), 10);
+}
+
+TEST(InputParameterControllerHelpers, HelpersReturnTheSlotForChaining) {
+  numsim_core::input_parameter_controller<std::string, parameter_handler<>> schema;
+  auto &young = schema.required<double>("young");
+  auto &chained = young.add<numsim_core::description_label<"Young's modulus">>();
+  EXPECT_EQ(&young, &chained);
+  EXPECT_EQ(&schema.get("young"), &young);
+  auto &steps = schema.optional<int>("steps", 10);
+  EXPECT_EQ(&schema.get("steps"), &steps);
+}

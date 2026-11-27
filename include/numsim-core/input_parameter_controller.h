@@ -1102,6 +1102,31 @@ public:
   }
 
   /**
+   * @brief Inserts a required parameter: `insert<T>(name).add<is_required>()`.
+   *
+   * Returns the slot, so further annotations chain on:
+   * @code
+   * p.required<double>("radius").add<range<0.0, 1.0>>();
+   * @endcode
+   */
+  template <typename T>
+  input_parameter<T, KeyType, ParameterHandler> &required(KeyType const &name) {
+    return insert<T>(name).template add<is_required>();
+  }
+
+  /**
+   * @brief Inserts an optional parameter with a default value:
+   * `insert<T>(name).add<set_default>(default_value)`.
+   *
+   * accept() fills in `default_value` when the key is absent. Returns the
+   * slot, so further annotations chain on.
+   */
+  template <typename T>
+  input_parameter<T, KeyType, ParameterHandler> &optional(KeyType const &name, T default_value) {
+    return insert<T>(name).template add<set_default>(std::move(default_value));
+  }
+
+  /**
    * @brief Retrieves a parameter by its name.
    *
    * @param name The name of the parameter to retrieve.
